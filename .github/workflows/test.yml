@@ -1,0 +1,132 @@
+name: Test
+
+# Runs on every pull request. Mark the jobs below as required status checks
+# in branch protection so a pull request can't be merged until they pass.
+# Deployment pipelines are added separately in Phase 14.
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Matches the db service in docker-compose.yml and the e2e webServer env in
+  # playwright.config.ts.
+  DATABASE_URL: postgres://gdshub:gdshub@localhost:5432/gdshub
+
+jobs:
+  lint:
+    name: Lint and typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Don't leave the workflow token in .git/config for later steps.
+          persist-credentials: false
+
+      # The Node version is read from "engines.node" in package.json, so CI
+      # always matches the repo definition (and the node:<version> Docker image).
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      # --ignore-scripts stops dependency install scripts running in CI, as in
+      # the Dockerfile. The only packages with scripts are esbuild (binary check,
+      # not needed) and fsevents (macOS only).
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm run typecheck
+
+  unit:
+    name: Unit tests (Vitest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      # Same image as docker-compose.yml. Unused until Phase 2 adds the schema,
+      # but ready for database-backed tests.
+      db:
+        image: postgres:18-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+        env:
+          POSTGRES_USER: gdshub
+          POSTGRES_PASSWORD: gdshub
+          POSTGRES_DB: gdshub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gdshub -d gdshub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Don't leave the workflow token in .git/config for later steps.
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+      - run: npm test
+
+  e2e:
+    name: End-to-end tests (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      db:
+        image: postgres:18-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+        env:
+          POSTGRES_USER: gdshub
+          POSTGRES_PASSWORD: gdshub
+          POSTGRES_DB: gdshub
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gdshub -d gdshub"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Don't leave the workflow token in .git/config for later steps.
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: package.json
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      # Installs the browser build that matches the locked @playwright/test
+      # version. Chromium only for now; add others if playwright.config.ts
+      # gains more projects.
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      # playwright.config.ts builds and starts the server itself (webServer).
+      - run: npm run test:e2e
+
+      # Artifacts and logs on a public repo can be downloaded by anyone signed in
+      # to GitHub. Traces include requests, responses and page content, so tests
+      # must only ever use synthetic data and test-generated keys or tokens.
+      - name: Upload Playwright results
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 3
+          if-no-files-found: ignore

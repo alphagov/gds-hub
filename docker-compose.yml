@@ -1,0 +1,34 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        APP_VERSION: local
+    ports:
+      - "127.0.0.1:${APP_HOST_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://gdshub:gdshub@db:5432/gdshub
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:18-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
+    environment:
+      POSTGRES_USER: gdshub
+      POSTGRES_PASSWORD: gdshub
+      POSTGRES_DB: gdshub
+    ports:
+      - "127.0.0.1:${DB_HOST_PORT:-5432}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gdshub -d gdshub"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db-data:
