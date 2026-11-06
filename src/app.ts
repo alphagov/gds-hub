@@ -1,8 +1,9 @@
 import compression from "compression";
-import express, { type ErrorRequestHandler, type Express } from "express";
+import express, { type Express } from "express";
 import helmet from "helmet";
 import type { Config } from "./config.js";
 import type { Logger } from "./lib/logger.js";
+import { errorHandler } from "./middleware/error-handler.js";
 import { requestId } from "./middleware/request-id.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { healthRouter } from "./routes/health.js";
@@ -28,15 +29,7 @@ export function createApp({ config, logger }: AppDependencies): Express {
     res.status(404).json({ error: "Not found" });
   });
 
-  const errorHandler: ErrorRequestHandler = (err: unknown, _req, res, _next) => {
-    res.locals.logger.error("unhandled error", { err });
-    if (res.headersSent) return;
-    res.status(500).json({
-      error: "Internal server error",
-      requestId: res.locals.requestId,
-    });
-  };
-  app.use(errorHandler);
+  app.use(errorHandler());
 
   return app;
 }

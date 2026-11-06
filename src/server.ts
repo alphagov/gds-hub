@@ -26,7 +26,11 @@ const logger = createJsonLogger({
   base: { service: "gds-hub", version: config.version },
 });
 
-const server = createApp({ config, logger }).listen(config.port, () => {
+const server = createApp({ config, logger }).listen(config.port, (err?: Error) => {
+  if (err) {
+    logger.error("failed to start server", { err });
+    process.exit(1);
+  }
   logger.info("server listening", { port: config.port, env: config.nodeEnv });
 });
 
