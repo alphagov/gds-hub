@@ -1,0 +1,14 @@
+node_modules
+dist
+coverage
+test-results
+playwright-report
+migration-data
+migration-reports
+.git
+.env
+.env.*
+!.env.example
+*.log
+docs
+test
