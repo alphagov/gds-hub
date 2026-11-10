@@ -1,6 +1,7 @@
-import { and, eq, like, ne, sql, type SQL } from "drizzle-orm";
+import { and, eq, getTableName, like, ne, sql, type SQL } from "drizzle-orm";
 import type { Config } from "../config.js";
 import type { Database, Transaction } from "./client.js";
+import { entityTypeOf } from "./entity-types.js";
 import { MIGRATIONS_SCHEMA, MIGRATIONS_TABLE } from "./migrate.js";
 import {
   auditAction,
@@ -11,7 +12,7 @@ import {
   pageType,
 } from "./schema/index.js";
 import { SEED_ACTOR } from "./seed/seed-data.js";
-import { APP_RELATION_NAMES, APP_VIEW_NAMES, firstNonEmptyTable } from "./tables.js";
+import { APP_RELATION_NAMES, APP_TABLES, APP_VIEW_NAMES, firstNonEmptyTable } from "./tables.js";
 
 /** Hosts a local or CI database runs on. "db" is the docker compose service. */
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "db"]);
@@ -87,12 +88,14 @@ interface Relation {
  *
  * - an empty database (no tables or views at all)
  * - a migrated database with no data
- * - a seeded development database, including any edits made in it
+ * - a seeded development database, including edits made in it, as long as
+ *   every row has a record of being created in audit_log
  *
  * It refuses, and drops nothing, if the database has tables or views this app
  * doesn't create (in the public or migration history schemas), data that was
- * imported, data that wasn't created by the seed, or anything else that
- * depends on the objects it would drop.
+ * imported, data in a database that was never seeded, rows with no audit
+ * record of being created, or anything else that depends on the objects it
+ * would drop.
  *
  * The check and the drop run in one transaction. The app's tables are locked
  * before their contents are checked and stay locked until the drop commits, so
@@ -154,7 +157,11 @@ async function findAppRelations(tx: Transaction): Promise<Relation[]> {
   return relations;
 }
 
-/** Throws unless the app's tables hold nothing but seed data and edits made since. */
+/**
+ * Throws unless the database was seeded, nothing was imported, and every row
+ * in the app's tables has a record of being created (by the seed or by an
+ * edit made since) in audit_log.
+ */
 async function assertResettable(tx: Transaction, relations: readonly Relation[]): Promise<void> {
   const names = relations.filter(({ schema }) => schema === APP_SCHEMA).map(({ name }) => name);
   // Nothing the migrations create, so no data to check. There may be a migration history.
@@ -177,14 +184,46 @@ async function assertResettable(tx: Transaction, relations: readonly Relation[])
   }
 
   const seedEntries = await tx.$count(auditLog, eq(auditLog.actorSubject, SEED_ACTOR.subject));
-  if (seedEntries > 0) return;
+  if (seedEntries === 0) {
+    const nonEmpty = await firstNonEmptyTable(tx);
+    if (nonEmpty !== undefined) {
+      throw new UnsafeDatabaseOperationError(
+        `refusing to reset a database with data that wasn't created by the seed (in ${nonEmpty}). ${HOW_TO_START_AGAIN}`,
+      );
+    }
+    return;
+  }
 
-  const nonEmpty = await firstNonEmptyTable(tx);
-  if (nonEmpty !== undefined) {
+  // Seed entries only show the database was seeded at some point. Each row
+  // still needs its own record, so data written without one isn't dropped.
+  const unrecorded = await firstTableWithUnrecordedRows(tx);
+  if (unrecorded !== undefined) {
     throw new UnsafeDatabaseOperationError(
-      `refusing to reset a database with data that wasn't created by the seed (in ${nonEmpty}). ${HOW_TO_START_AGAIN}`,
+      `refusing to reset a database with rows that have no audit record of being created (in ${unrecorded}). ${HOW_TO_START_AGAIN}`,
     );
   }
+}
+
+/**
+ * The name of the first audited table with a row that has no "create" entry
+ * in audit_log, or undefined if every row has one.
+ */
+async function firstTableWithUnrecordedRows(tx: Transaction): Promise<string | undefined> {
+  for (const table of APP_TABLES) {
+    if (table === auditLog) continue;
+    const result = await tx.execute<{ found: boolean }>(sql`
+      SELECT EXISTS (
+        SELECT 1 FROM ${table} AS r
+        WHERE NOT EXISTS (
+          SELECT 1 FROM ${auditLog} AS a
+          WHERE a.entity_type = ${entityTypeOf(table)}
+            AND a.entity_id = r.id
+            AND a.action = 'create'
+        )
+      ) AS found`);
+    if (result.rows[0]?.found) return getTableName(table);
+  }
+  return undefined;
 }
 
 /**

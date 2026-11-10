@@ -187,8 +187,8 @@ Smaller choices where Section 6 doesn't specify:
   - any host other than `localhost`, `127.0.0.1`, `[::1]` or `db`
   - a `DATABASE_URL` with a `host` or `hostaddr` query parameter, because node-postgres lets those override the host in the URL
 - **`db:reset` also checks what's in the database before dropping anything,** so a tunnel to a real database on `localhost` is still refused (`dropAppObjects` in `src/db/reset.ts`).
-  - **Allowed:** an empty database, a migrated database with no data, or a seeded development database (including edits made in it).
-  - **Refused:** tables or views this app doesn't create (in `public` or `drizzle`), any imported data (`system:` audit entries other than the seed's), data the seed didn't create, or anything else that depends on the app's tables, views or enums.
+  - **Allowed:** an empty database, a migrated database with no data, or a seeded development database (including edits made in it), as long as every row has a `create` entry in `audit_log`.
+  - **Refused:** tables or views this app doesn't create (in `public` or `drizzle`), any imported data (`system:` audit entries other than the seed's), data in a database that was never seeded, rows with no audit record of being created, or anything else that depends on the app's tables, views or enums.
   - **The check and the drop run in one transaction.** The app's tables are locked before their contents are checked, so an import can't commit in between.
   - **Only the app's own objects are dropped,** by name and without `CASCADE`. Anything else in the database is left alone.
   - To start again with a local database that holds imported data, run `docker compose down -v`.

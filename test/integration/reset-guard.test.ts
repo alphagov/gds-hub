@@ -84,21 +84,49 @@ describe("db:reset", () => {
     expect(await objectsLeft()).toEqual([]);
   });
 
-  it("is allowed on a seeded development database, including edits made in it", async () => {
+  it("is allowed on a seeded development database, including audited edits made in it", async () => {
     await migrateAndSeed();
+    const [created] = await db()
+      .insert(tools)
+      .values({ key: "new-tool", slug: "new-tool", name: "New tool" })
+      .returning({ id: tools.id });
+    if (!created) throw new Error("expected the new tool to be inserted");
     await db()
       .insert(auditLog)
-      .values({
-        entityType: "tool",
-        entityId: 1,
-        action: "update",
-        before: { name: "Old" },
-        after: { name: "New" },
-        actorName: "editor@example.com",
-        actorSubject: "editor@example.com",
-      });
+      .values([
+        {
+          entityType: "tool",
+          entityId: created.id,
+          action: "create",
+          after: { name: "New tool" },
+          actorName: "editor@example.com",
+          actorSubject: "editor@example.com",
+        },
+        {
+          entityType: "tool",
+          entityId: 1,
+          action: "update",
+          before: { name: "Old" },
+          after: { name: "New" },
+          actorName: "editor@example.com",
+          actorSubject: "editor@example.com",
+        },
+      ]);
+
     await expect(dropAppObjects(db())).resolves.toBeUndefined();
     expect(await objectsLeft()).toEqual([]);
+  });
+
+  it("is refused when a seeded database has rows with no audit record of being created, and keeps them", async () => {
+    await migrateAndSeed();
+    await db()
+      .insert(tools)
+      .values({ key: "unrecorded-tool", slug: "unrecorded-tool", name: "Unrecorded tool" });
+
+    await expect(dropAppObjects(db())).rejects.toThrow(
+      /rows that have no audit record of being created \(in tools\)/,
+    );
+    expect(await db().$count(tools, eq(tools.key, "unrecorded-tool"))).toBe(1);
   });
 
   it("keeps functions and sequences this app doesn't create", async () => {
