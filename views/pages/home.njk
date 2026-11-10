@@ -1,0 +1,17 @@
+{% extends "layouts/content.njk" %}
+
+{% block lead %}
+  <p class="govuk-body-l">Find tools, capabilities, services, policies and guidance used across GDS.</p>
+{% endblock %}
+
+{% block body %}
+  <h2 class="govuk-heading-m">Sections</h2>
+  <ul class="govuk-list govuk-list--spaced">
+    {% for section in page.sections %}
+      <li>
+        <a class="govuk-link govuk-!-font-weight-bold" href="{{ section.href }}">{{ section.text }}</a>
+        <p class="govuk-body">{{ section.description }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+{% endblock %}

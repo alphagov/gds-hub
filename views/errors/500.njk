@@ -1,0 +1,8 @@
+{% extends "layouts/content.njk" %}
+
+{% block body %}
+  <p class="govuk-body">Try again later.</p>
+  {% if page.requestId %}
+    <p class="govuk-body">If you report this problem, give this reference: <strong>{{ page.requestId }}</strong></p>
+  {% endif %}
+{% endblock %}
