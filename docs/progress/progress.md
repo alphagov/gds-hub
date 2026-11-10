@@ -2,10 +2,11 @@
 
 A short summary of each completed phase. The full handover for each phase (what was built, key files, decisions, blockers and follow-ups) is in its own file, `docs/progress/progress-phase<N>.md`.
 
-| Phase | Name                    | Date       | Status        | Handover                                 |
-| ----- | ----------------------- | ---------- | ------------- | ---------------------------------------- |
-| P0    | Foundations and tooling | 2026-11-04 | Code complete | [progress-phase0.md](progress-phase0.md) |
-| P1    | GOV.UK shell and SSR    | 2026-11-09 | Code complete | [progress-phase1.md](progress-phase1.md) |
+| Phase | Name                        | Date       | Status                     | Handover                                 |
+| ----- | --------------------------- | ---------- | -------------------------- | ---------------------------------------- |
+| P0    | Foundations and tooling     | 2026-11-04 | Code complete              | [progress-phase0.md](progress-phase0.md) |
+| P1    | GOV.UK shell and SSR        | 2026-11-09 | Code complete              | [progress-phase1.md](progress-phase1.md) |
+| P2    | Schema, migrations and seed | 2026-11-10 | Code complete, not yet run | [progress-phase2.md](progress-phase2.md) |
 
 ## Phase 0: Foundations and tooling (2026-11-04)
 
@@ -27,7 +28,27 @@ A short summary of each completed phase. The full handover for each phase (what 
 - Playwright runs everything with JavaScript on and off. axe (WCAG 2.2 AA tags) scans every route.
 - **Verified on the host:** the sandbox has no Node.js, so the developer ran lint, typecheck, Vitest and Playwright on the host; all pass. See [progress-phase1.md](progress-phase1.md) for the layout blocks, view-model convention and how to add a route.
 
+## Phase 2: Schema, migrations and seed (2026-11-10)
+
+- Drizzle ORM schema in `src/db/schema/`, following the Section 6 data model and the developer's prototype schema, and checked against the current Hub's YAML structure (all inputs are in the git-ignored `db-reference-material/`). There are 16 tables:
+  - **Catalogue:** `vendors`, `suppliers`, `tools`, `supplier_tools`, `contracts`, `ownership_levels`, `instances`, `capabilities`, `capability_tools`
+  - **Organisation:** `product_team_services`, `product_team_service_instances`, `instance_capabilities`, `business_units`, `business_unit_product_team_services`
+  - **Content and audit:** `pages`, `audit_log`
+- No `admin_users`, `roles`, `active_admin_comments` or `versions`, and no credential columns (a test checks this).
+- Five pg enums: `migration_status`, `engineering_or_business_tool`, `page_type`, `content_status` and `audit_action`.
+- `bigint` identity keys throughout. `instances.target_ownership_level_id` and `business_units.parent_id` are now real `bigint` foreign keys.
+- Section 6 additions: slugs on vendors and teams, `last_reviewed_at` (set by a person) alongside `updated_at`, flat `pages` with a globally unique slug, linked to a team, and `audit_log` with `before`, `after`, `changed_fields`, `actor_name` and `actor_subject`. `page_type` adds `whats_new` to Section 6's four values.
+- `tools.vendor_id` and `instances.contract_id` are nullable. `instances.tool_id` was added, with a composite FK so that an instance's contract is always for the same tool.
+- Hand-written `drizzle/0001_search.sql`: generated, weighted `search_vector` columns (A = title or name, B = summary or description, C = body) and GIN indexes on 8 tables (Section 6.4's six plus business units and ownership levels), plus the `search_index` UNION ALL view with `slug` and `snippet_source` (published pages only).
+- `db:generate`, `db:migrate`, `db:seed` and `db:reset`. The seed is synthetic only and audited. Reset and seed only run against local databases, and reset also refuses any database holding imported data or data the seed didn't create.
+- `audit_log` is append-only (triggers in the hand-written `drizzle/0002_audit_log_append_only.sql`). Link columns must be `http` or `https` URLs, GitHub organisation names must be valid, and extra instance attributes must be text.
+- Vitest integration tests (in `npm test`) create a throwaway database, migrate and seed it, and check foreign keys, RESTRICT and CASCADE, check constraints, the absence of credential columns and search ranking. CI now fails if the migrations are out of date with the schema.
+- **Not run in the sandbox** (no Node.js or Postgres). The developer generates `0000_init.sql` and runs the checks on the host. See [progress-phase2.md](progress-phase2.md#steps-to-run-on-the-host).
+- **Open questions for Phase 5:** contracts need a supplier but the YAML has none; map the real migration status values; decide the primary business unit for teams in more than one unit.
+
 ## Before Phase 2: inputs to request
+
+Supplied on 2026-11-10 in `db-reference-material/` (git-ignored) and used in Phase 2. The original request is kept below for reference.
 
 The Phase 2 schema needs two inputs from the developer. They don't exist yet. When the Phase 2 session starts, check whether they've been supplied. If not, ask for them before proposing a plan, and don't design the schema without them.
 
