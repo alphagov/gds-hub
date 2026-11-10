@@ -1,5 +1,5 @@
 import type { PgTable } from "drizzle-orm/pg-core";
-import type { Database } from "../client.js";
+import type { Database, Transaction } from "../client.js";
 import { entityTypeOf } from "../entity-types.js";
 import { firstNonEmptyTable } from "../tables.js";
 import {
@@ -34,8 +34,6 @@ import {
   seedTools,
   seedVendors,
 } from "./seed-data.js";
-
-type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
 export class SeedError extends Error {
   constructor(message: string) {

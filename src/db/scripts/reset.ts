@@ -1,13 +1,14 @@
 import { runMigrations } from "../migrate.js";
-import { assertLocalDatabase, assertResettable, dropEverything } from "../reset.js";
+import { assertLocalDatabase, dropAppObjects } from "../reset.js";
 import { seedDatabase } from "../seed/seed.js";
 import { runScript } from "./run-script.js";
 
 await runScript("db:reset", async ({ config, db, logger }) => {
   assertLocalDatabase(config);
-  await assertResettable(db);
-  logger.info("dropping all tables, views, enums and migration history");
-  await dropEverything(db);
+  logger.info(
+    "checking the database, then dropping the app's tables, views, functions, enums and migration history",
+  );
+  await dropAppObjects(db);
   logger.info("applying migrations");
   await runMigrations(db);
   logger.info("seeding synthetic data");

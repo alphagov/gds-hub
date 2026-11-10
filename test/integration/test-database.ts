@@ -1,4 +1,5 @@
 import { randomBytes } from "node:crypto";
+import { sql } from "drizzle-orm";
 import pg from "pg";
 import { connect, type Database } from "../../src/db/client.js";
 import { runMigrations } from "../../src/db/migrate.js";
@@ -14,6 +15,8 @@ export const RAISE_EXCEPTION = "P0001";
 
 export interface TestDatabase {
   readonly db: Database;
+  /** The test database's connection string, for tests that need a connection of their own. */
+  readonly url: string;
   drop(): Promise<void>;
 }
 
@@ -47,14 +50,27 @@ export async function createTestDatabase(): Promise<TestDatabase> {
   const url = new URL(serverUrl);
   url.pathname = `/${name}`;
   const connection = connect(url.toString());
-
-  return {
-    db: connection.db,
-    drop: async () => {
-      await connection.close();
-      await adminQuery(serverUrl, `DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
-    },
+  const drop = async () => {
+    await connection.close();
+    await adminQuery(serverUrl, `DROP DATABASE IF EXISTS "${name}" WITH (FORCE)`);
   };
+
+  // The tests drop tables and change data, so check nothing in DATABASE_URL
+  // pointed the connection at a different database before using it.
+  try {
+    const result = await connection.db.execute<{ name: string }>(
+      sql`SELECT current_database() AS name`,
+    );
+    const connectedTo = result.rows[0]?.name ?? "no database";
+    if (connectedTo !== name) {
+      throw new Error(`expected to connect to ${name}, but connected to ${connectedTo}`);
+    }
+  } catch (error) {
+    await drop();
+    throw error;
+  }
+
+  return { db: connection.db, url: url.toString(), drop };
 }
 
 /** Like createTestDatabase, with every migration applied. */

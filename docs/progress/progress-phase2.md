@@ -49,7 +49,7 @@ src/db/entity-types.ts             ENTITY_TYPE_BY_TABLE, entityTypeOf(table): au
 src/db/tables.ts                   APP_TABLES, APP_RELATION_NAMES, firstNonEmptyTable(db)
 src/db/client.ts                   connect(databaseUrl) -> { db, close }
 src/db/migrate.ts                  runMigrations(db)
-src/db/reset.ts                    assertLocalDatabase(config), assertResettable(db), dropEverything(db)
+src/db/reset.ts                    assertLocalDatabase(config), dropAppObjects(db)
 src/db/seed/seed-data.ts           the synthetic records
 src/db/seed/seed.ts                seedDatabase(db)
 src/db/scripts/*.ts                command-line entry points for db:migrate, db:seed, db:reset
@@ -102,7 +102,7 @@ Adding an enum value is backward compatible. Removing or renaming one isn't, so 
 
 `entity_type` (`varchar(64)`, the singular record type such as `instance` or `page`, from `src/db/entity-types.ts`), `entity_id`, `action`, `before` and `after` (the full row as `jsonb`), `changed_fields` (`jsonb` list, default `[]`), `actor_name` and `actor_subject` (both the editor's email in the MVP, `system:...` for the seed and imports), `source_ip`, `request_id`, `change_summary` and `created_at`. Index `audit_entity_idx` on `(entity_type, entity_id, created_at)`.
 
-**`audit_log` is append-only.** Triggers in `drizzle/0002_audit_log_append_only.sql` reject `UPDATE`, `DELETE` and `TRUNCATE` on it, whichever code path tries. Dropping the schema or database (`db:reset`, test clean-up) still works. A future retention policy needs a deliberate step by the table owner that disables the triggers.
+**`audit_log` is append-only.** Triggers in `drizzle/0002_audit_log_append_only.sql` reject `UPDATE`, `DELETE` and `TRUNCATE` on it, whichever code path tries. Dropping the table or database (`db:reset`, test clean-up) still works. A future retention policy needs a deliberate step by the table owner that disables the triggers.
 
 ### `pages` columns
 
@@ -186,9 +186,11 @@ Smaller choices where Section 6 doesn't specify:
   - `NODE_ENV=production`
   - any host other than `localhost`, `127.0.0.1`, `[::1]` or `db`
   - a `DATABASE_URL` with a `host` or `hostaddr` query parameter, because node-postgres lets those override the host in the URL
-- **`db:reset` also checks what's in the database before dropping anything,** so a tunnel to a real database on `localhost` is still refused (`assertResettable` in `src/db/reset.ts`).
+- **`db:reset` also checks what's in the database before dropping anything,** so a tunnel to a real database on `localhost` is still refused (`dropAppObjects` in `src/db/reset.ts`).
   - **Allowed:** an empty database, a migrated database with no data, or a seeded development database (including edits made in it).
-  - **Refused:** tables or views this app doesn't create, any imported data (`system:` audit entries other than the seed's), or data the seed didn't create.
+  - **Refused:** tables or views this app doesn't create (in `public` or `drizzle`), any imported data (`system:` audit entries other than the seed's), data the seed didn't create, or anything else that depends on the app's tables, views or enums.
+  - **The check and the drop run in one transaction.** The app's tables are locked before their contents are checked, so an import can't commit in between.
+  - **Only the app's own objects are dropped,** by name and without `CASCADE`. Anything else in the database is left alone.
   - To start again with a local database that holds imported data, run `docker compose down -v`.
 - **The integration tests run in `npm test`.** Each run creates `gdshub_test_<random>` on the `DATABASE_URL` server and drops it afterwards. Vitest reads `DATABASE_URL` from `.env` (an environment variable wins, as in CI), and the tests fail with a clear message if it isn't set. The database user needs `CREATEDB`. The compose and CI users are superusers.
 - **The database scripts load `.env` with Node's `--env-file-if-exists` and run TypeScript through `--import tsx`.** In CI they use the environment instead.
@@ -226,11 +228,11 @@ Check that `drizzle/meta/_journal.json` lists `0000_init`, `0001_search` and `00
 
 ## Seed commands
 
-| Command              | What it does                                                          |
-| -------------------- | --------------------------------------------------------------------- |
-| `npm run db:migrate` | Applies pending migrations                                            |
-| `npm run db:seed`    | Seeds an empty, migrated local database                               |
-| `npm run db:reset`   | Drops everything (schemas `public` and `drizzle`), migrates and seeds |
+| Command              | What it does                                                                              |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| `npm run db:migrate` | Applies pending migrations                                                                |
+| `npm run db:seed`    | Seeds an empty, migrated local database                                                   |
+| `npm run db:reset`   | Drops the app's tables, views, functions, enums and migration history, migrates and seeds |
 
 ## Blockers and missing packages
 

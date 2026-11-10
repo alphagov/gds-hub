@@ -4,6 +4,9 @@ import * as schema from "./schema/index.js";
 
 export type Database = NodePgDatabase<typeof schema>;
 
+/** The handle Database.transaction() passes to its callback. Runs on one connection. */
+export type Transaction = Parameters<Parameters<Database["transaction"]>[0]>[0];
+
 export interface DatabaseConnection {
   readonly db: Database;
   /** Closes every connection in the pool. Call once when shutting down. */

@@ -40,10 +40,13 @@ export const APP_TABLES: readonly PgTable[] = [
   auditLog,
 ];
 
+/** Views the app's migrations create (drizzle/0001_search.sql). */
+export const APP_VIEW_NAMES: readonly string[] = ["search_index"];
+
 /** Tables and views the app's migrations create, by name. */
 export const APP_RELATION_NAMES: ReadonlySet<string> = new Set([
   ...APP_TABLES.map((table) => getTableName(table)),
-  "search_index",
+  ...APP_VIEW_NAMES,
 ]);
 
 /** The name of the first app table that has any rows, or undefined if they are all empty. */
