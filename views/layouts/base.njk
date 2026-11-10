@@ -1,0 +1,55 @@
+{#
+  Every page extends this layout, usually through content.njk or listing.njk.
+  Context:
+    page    the view model for the page (see src/view-models.ts)
+    layout  per-request layout data built by src/lib/render.ts
+  Blocks you can override, as well as those in govuk/template.njk:
+    breadcrumbs  replaces the breadcrumbs built from page.breadcrumbs
+    content      the main page content
+#}
+{% extends "govuk/template.njk" %}
+
+{% from "govuk/components/breadcrumbs/macro.njk" import govukBreadcrumbs %}
+{% from "govuk/components/generic-header/macro.njk" import govukGenericHeader %}
+{% from "govuk/components/phase-banner/macro.njk" import govukPhaseBanner %}
+{% from "govuk/components/service-navigation/macro.njk" import govukServiceNavigation %}
+
+{% block pageTitle %}{{ layout.documentTitle }}{% endblock %}
+
+{% block head %}
+  <link rel="stylesheet" href="{{ layout.assets.stylesheet }}">
+{% endblock %}
+
+{#
+  The Hub isn't a GOV.UK service, so it uses the generic header with the
+  service name in place of the GOV.UK logo. The service name is not repeated
+  in the service navigation.
+#}
+{% block govukHeader %}
+  {{ govukGenericHeader({
+    url: layout.homePath,
+    logoText: layout.serviceName
+  }) }}
+{% endblock %}
+
+{% block govukServiceNavigation %}
+  {{ govukServiceNavigation({
+    navigation: layout.navigation
+  }) }}
+{% endblock %}
+
+{% block beforeContent %}
+  {{ govukPhaseBanner({
+    tag: { text: "Beta" },
+    text: "This is a new service."
+  }) }}
+  {% block breadcrumbs %}
+    {% if page.breadcrumbs | length %}
+      {{ govukBreadcrumbs({ items: page.breadcrumbs }) }}
+    {% endif %}
+  {% endblock %}
+{% endblock %}
+
+{% block bodyEnd %}
+  <script type="module" src="{{ layout.assets.applicationScript }}"></script>
+{% endblock %}

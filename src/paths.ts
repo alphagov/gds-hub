@@ -1,0 +1,19 @@
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// This file is at src/paths.ts (tsx, Vitest) or dist/paths.js (built), so the
+// project root is one level up either way.
+const ROOT = fileURLToPath(new URL("..", import.meta.url));
+
+/** Nunjucks templates. */
+export const VIEWS_DIR = path.join(ROOT, "views");
+
+/** Our own static files, served from the site root. */
+export const PUBLIC_DIR = path.join(ROOT, "public");
+
+/** govuk-frontend's dist folder. Templates are under govuk/ inside it. */
+export const GOVUK_FRONTEND_DIST = path.join(
+  path.dirname(createRequire(import.meta.url).resolve("govuk-frontend/package.json")),
+  "dist",
+);

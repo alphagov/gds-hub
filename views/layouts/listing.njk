@@ -1,0 +1,32 @@
+{#
+  A list of links to items. Needs a ListingViewModel (page.items).
+  Blocks: heading (defaults to page.title as the h1), intro, filters,
+  list (defaults to page.items) and emptyState (shown when there are no items).
+#}
+{% extends "layouts/base.njk" %}
+
+{% block content %}
+  {% block heading %}
+    <h1 class="govuk-heading-xl">{{ page.title }}</h1>
+  {% endblock %}
+  {% block intro %}{% endblock %}
+  {% block filters %}{% endblock %}
+  {% block list %}
+    {% if page.items | length %}
+      <ul class="govuk-list govuk-list--spaced">
+        {% for item in page.items %}
+          <li>
+            <a class="govuk-link" href="{{ item.href }}">{{ item.text }}</a>
+            {% if item.description %}
+              <p class="govuk-body">{{ item.description }}</p>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      {% block emptyState %}
+        <p class="govuk-body">Content will be added in a later phase.</p>
+      {% endblock %}
+    {% endif %}
+  {% endblock %}
+{% endblock %}

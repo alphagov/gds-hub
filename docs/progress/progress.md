@@ -5,6 +5,7 @@ A short summary of each completed phase. The full handover for each phase (what 
 | Phase | Name                    | Date       | Status        | Handover                                 |
 | ----- | ----------------------- | ---------- | ------------- | ---------------------------------------- |
 | P0    | Foundations and tooling | 2026-11-04 | Code complete | [progress-phase0.md](progress-phase0.md) |
+| P1    | GOV.UK shell and SSR    | 2026-11-09 | Code complete | [progress-phase1.md](progress-phase1.md) |
 
 ## Phase 0: Foundations and tooling (2026-11-04)
 
@@ -16,6 +17,15 @@ A short summary of each completed phase. The full handover for each phase (what 
 - **Key follow-ups:** add `npm run check:no-migration-data` (and add it to the test workflow), choose a logging library, set `trust proxy` in Phase 13.
 - **Pull request testing (added 2026-11-06):** `.github/workflows/test.yml` runs lint and typecheck, Vitest and Playwright on every pull request, with Node from `engines.node` and the `postgres:18-alpine` service. The developer marks the three jobs as required checks in branch protection. See [progress-phase0.md](progress-phase0.md#pull-request-testing).
 - **Security hardening (2026-11-06):** actions pinned to SHAs, `persist-credentials: false`, `npm ci --ignore-scripts`, Dependabot for actions, npm and Docker images. JWT verification is now a rule for Phase 8. Docker images pinned by digest. Outstanding: apply the repository settings, and change `@types/node` to `^24`.
+
+## Phase 1: GOV.UK shell and server-side rendering (2026-11-09)
+
+- GOV.UK Frontend 6.6 with Nunjucks server-side rendering (autoescape on). `layouts/base.njk` extends `govuk/template.njk` with the header, service navigation, a "Beta" phase banner, breadcrumbs and the footer. `content.njk` and `listing.njk` add overridable blocks.
+- A typed render helper pairs each template with its view model. Section names, routes, asset URLs and error titles come from one place, `src/site-map.ts`, which the app and the tests share.
+- Placeholder home and section pages. GOV.UK 403, 404 and 500 pages come from one central error handler. Unknown routes now get the HTML 404 page instead of JSON.
+- A Content-Security-Policy with a per-request nonce for GOV.UK's inline script.
+- Playwright runs everything with JavaScript on and off. axe (WCAG 2.2 AA tags) scans every route.
+- **Verified on the host:** the sandbox has no Node.js, so the developer ran lint, typecheck, Vitest and Playwright on the host; all pass. See [progress-phase1.md](progress-phase1.md) for the layout blocks, view-model convention and how to add a route.
 
 ## Before Phase 2: inputs to request
 

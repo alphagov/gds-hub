@@ -1,84 +1,222 @@
-import express from "express";
+import express, { type Express } from "express";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { HttpError } from "../../src/lib/http-error.js";
 import type { LogFields, Logger } from "../../src/lib/logger.js";
-import { errorHandler } from "../../src/middleware/error-handler.js";
+import { createRenderer, type Renderer } from "../../src/lib/render.js";
+import { cspNonce } from "../../src/middleware/csp-nonce.js";
+import { errorHandler, notFoundHandler } from "../../src/middleware/error-handler.js";
 import { requestId } from "../../src/middleware/request-id.js";
+import { ERROR_PAGES } from "../../src/site-map.js";
 import { startApp, type RunningApp } from "./helpers.js";
 
-interface LoggedError {
+type Level = "debug" | "info" | "warn" | "error";
+
+interface LogEntry {
+  level: Level;
   message: string;
   fields: LogFields | undefined;
 }
 
-function recordingLogger(errors: LoggedError[]): Logger {
+function recordingLogger(entries: LogEntry[]): Logger {
+  const at =
+    (level: Level) =>
+    (message: string, fields?: LogFields): void => {
+      entries.push({ level, message, fields });
+    };
   const logger: Logger = {
-    debug: () => undefined,
-    info: () => undefined,
-    warn: () => undefined,
-    error: (message, fields) => {
-      errors.push({ message, fields });
-    },
+    debug: at("debug"),
+    info: at("info"),
+    warn: at("warn"),
+    error: at("error"),
     child: () => logger,
   };
   return logger;
 }
 
 async function getBody(url: string): Promise<string> {
-  const response = await fetch(url);
+  const response: Response = await fetch(url);
   return response.text();
 }
 
-describe("errorHandler middleware", () => {
-  const errors: LoggedError[] = [];
+function headingPattern(text: string): RegExp {
+  return new RegExp(`<h1[^>]*>\\s*${text}\\s*</h1>`);
+}
+
+function buildApp(renderer: Renderer, entries: LogEntry[]): Express {
+  const app = express();
+  app.use(requestId(recordingLogger(entries)));
+  app.use(cspNonce());
+  app.get("/forbidden", (_req, _res, next) => {
+    next(new HttpError(403));
+  });
+  app.get("/fails", (_req, _res, next) => {
+    next(new Error("boom"));
+  });
+  app.get("/fails-mid-response", (_req, res, next) => {
+    res.status(200).type("text/plain");
+    res.write("partial body");
+    next(new Error("boom after headers"));
+  });
+  app.get("/range-not-satisfiable", (_req, _res, next) => {
+    // The shape of the error res.sendFile passes on for an unsatisfiable Range header.
+    const err = Object.assign(new Error("Range Not Satisfiable"), {
+      status: 416,
+      headers: { "Content-Range": "bytes */100" },
+    });
+    next(err);
+  });
+  app.get("/missing-file", (_req, _res, next) => {
+    next(Object.assign(new Error("ENOENT"), { statusCode: 404 }));
+  });
+  app.get("/upstream-failure", (_req, _res, next) => {
+    next(Object.assign(new Error("upstream failed"), { status: 503 }));
+  });
+  app.use(notFoundHandler());
+  app.use(errorHandler(renderer));
+  return app;
+}
+
+describe("error pages", () => {
+  const entries: LogEntry[] = [];
   let running: RunningApp;
 
   beforeAll(async () => {
-    const app = express();
-    app.use(requestId(recordingLogger(errors)));
-    app.get("/fails", (_req, _res, next) => {
-      next(new Error("boom"));
-    });
-    app.get("/fails-mid-response", (_req, res, next) => {
-      res.status(200).type("text/plain");
-      res.write("partial body");
-      next(new Error("boom after headers"));
-    });
-    app.use(errorHandler());
-    running = await startApp(app);
+    running = await startApp(buildApp(createRenderer(), entries));
   });
 
   beforeEach(() => {
-    errors.length = 0;
+    entries.length = 0;
   });
 
   afterAll(async () => {
     await running.close();
   });
 
-  it("returns a 500 with the request ID when the response hasn't started", async () => {
-    const response = await fetch(`${running.baseUrl}/fails`, {
+  it("shows the page not found page for an unknown address", async () => {
+    const response: Response = await fetch(`${running.baseUrl}/no-such-page`);
+    const html: string = await response.text();
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("content-type")).toMatch(/^text\/html/);
+    expect(html).toMatch(headingPattern(ERROR_PAGES[404].title));
+    expect(html).toContain("If you typed the web address, check it is correct.");
+  });
+
+  it("shows the forbidden page for a 403", async () => {
+    const response: Response = await fetch(`${running.baseUrl}/forbidden`);
+    const html: string = await response.text();
+
+    expect(response.status).toBe(403);
+    expect(html).toMatch(headingPattern(ERROR_PAGES[403].title));
+  });
+
+  it("shows the server error page with the request ID and without the error details", async () => {
+    const response: Response = await fetch(`${running.baseUrl}/fails`, {
       headers: { "x-request-id": "test-request-1" },
     });
+    const html: string = await response.text();
 
     expect(response.status).toBe(500);
-    expect(await response.json()).toEqual({
-      error: "Internal server error",
-      requestId: "test-request-1",
-    });
+    expect(response.headers.get("content-type")).toMatch(/^text\/html/);
+    expect(html).toMatch(headingPattern(ERROR_PAGES[500].title));
+    expect(html).toContain("test-request-1");
+    expect(html).not.toContain("boom");
+  });
+
+  it("keeps the client error status from file-serving errors", async () => {
+    const response: Response = await fetch(`${running.baseUrl}/range-not-satisfiable`);
+    const body: string = await response.text();
+
+    expect(response.status).toBe(416);
+    expect(response.headers.get("content-type")).toMatch(/^text\/plain/);
+    expect(response.headers.get("content-range")).toBe("bytes */100");
+    expect(body).toBe("Range Not Satisfiable");
+  });
+
+  it("shows the page not found page for a 404 from another middleware", async () => {
+    const response: Response = await fetch(`${running.baseUrl}/missing-file`);
+    const html: string = await response.text();
+
+    expect(response.status).toBe(404);
+    expect(html).toMatch(headingPattern(ERROR_PAGES[404].title));
+  });
+
+  it("treats server error statuses from other middleware as a 500", async () => {
+    const response: Response = await fetch(`${running.baseUrl}/upstream-failure`);
+    const html: string = await response.text();
+
+    expect(response.status).toBe(500);
+    expect(html).toMatch(headingPattern(ERROR_PAGES[500].title));
+    expect(entries.filter((entry) => entry.level === "error")).toHaveLength(1);
+  });
+
+  it("stops error pages from being cached", async () => {
+    for (const path of ["/no-such-page", "/forbidden", "/fails", "/range-not-satisfiable"]) {
+      const response: Response = await fetch(`${running.baseUrl}${path}`);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+    }
   });
 
   it("closes the connection when the response has already started", async () => {
-    // Without the fix the body never ends, so this would hang until the test times out.
+    // If the connection were left open the body would never end and this would time out.
     await expect(getBody(`${running.baseUrl}/fails-mid-response`)).rejects.toThrow();
   });
 
-  it("logs the error in both cases", async () => {
+  it("logs unexpected errors at error level", async () => {
     await fetch(`${running.baseUrl}/fails`);
     await getBody(`${running.baseUrl}/fails-mid-response`).catch(() => undefined);
 
-    const messages = errors.map((entry) => entry.message);
-    const errorMessages = errors.map((entry) => (entry.fields?.err as Error).message);
-    expect(messages).toEqual(["unhandled error", "unhandled error"]);
-    expect(errorMessages).toEqual(["boom", "boom after headers"]);
+    const errors: LogEntry[] = entries.filter((entry) => entry.level === "error");
+    expect(errors.map((entry) => entry.message)).toEqual(["unhandled error", "unhandled error"]);
+    expect(errors.map((entry) => (entry.fields?.err as Error).message)).toEqual([
+      "boom",
+      "boom after headers",
+    ]);
+  });
+
+  it("does not log client errors as errors", async () => {
+    await fetch(`${running.baseUrl}/no-such-page`);
+    await fetch(`${running.baseUrl}/forbidden`);
+    await fetch(`${running.baseUrl}/range-not-satisfiable`);
+    await fetch(`${running.baseUrl}/missing-file`);
+
+    expect(entries.filter((entry) => entry.level === "error")).toEqual([]);
+  });
+});
+
+describe("error pages when the error template cannot be rendered", () => {
+  const entries: LogEntry[] = [];
+  let running: RunningApp;
+
+  const brokenRenderer: Renderer = {
+    renderToString: () => Promise.reject(new Error("template broken")),
+    render: () => Promise.reject(new Error("template broken")),
+  };
+
+  beforeAll(async () => {
+    running = await startApp(buildApp(brokenRenderer, entries));
+  });
+
+  afterAll(async () => {
+    await running.close();
+  });
+
+  it("falls back to a plain-text 500 and logs both errors", async () => {
+    const response: Response = await fetch(`${running.baseUrl}/fails`, {
+      headers: { "x-request-id": "test-request-2" },
+    });
+    const body: string = await response.text();
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("content-type")).toMatch(/^text\/plain/);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(body).toContain(ERROR_PAGES[500].title);
+    expect(body).toContain("test-request-2");
+
+    const errors: LogEntry[] = entries.filter((entry) => entry.level === "error");
+    expect(errors.map((entry) => (entry.fields?.err as Error).message)).toEqual([
+      "boom",
+      "template broken",
+    ]);
   });
 });

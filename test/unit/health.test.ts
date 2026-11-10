@@ -37,10 +37,4 @@ describe("GET /health", () => {
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
     expect(response.headers.get("x-powered-by")).toBeNull();
   });
-
-  it("returns 404 JSON for unknown paths", async () => {
-    const response = await fetch(`${running.baseUrl}/does-not-exist`);
-    expect(response.status).toBe(404);
-    expect(await response.json()).toEqual({ error: "Not found" });
-  });
 });

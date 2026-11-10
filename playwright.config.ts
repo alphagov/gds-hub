@@ -1,4 +1,4 @@
-import { defineConfig } from "@playwright/test";
+import { defineConfig, devices } from "@playwright/test";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
 const baseURL = `http://localhost:${PORT}`;
@@ -9,6 +9,18 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: { baseURL },
+  // Tests run twice: once as normal and once with JavaScript turned off,
+  // because every page must work without JavaScript. axe needs JavaScript to
+  // run, so the accessibility spec scans the no-JavaScript version of each
+  // page itself (by blocking the page's scripts) and only runs in "chromium".
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    {
+      name: "chromium-no-js",
+      use: { ...devices["Desktop Chrome"], javaScriptEnabled: false },
+      testIgnore: "accessibility.spec.ts",
+    },
+  ],
   webServer: {
     command: "npm run build && npm start",
     url: `${baseURL}/health`,
