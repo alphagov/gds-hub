@@ -57,6 +57,20 @@ function buildApp(renderer: Renderer, entries: LogEntry[]): Express {
     res.write("partial body");
     next(new Error("boom after headers"));
   });
+  app.get("/range-not-satisfiable", (_req, _res, next) => {
+    // The shape of the error res.sendFile passes on for an unsatisfiable Range header.
+    const err = Object.assign(new Error("Range Not Satisfiable"), {
+      status: 416,
+      headers: { "Content-Range": "bytes */100" },
+    });
+    next(err);
+  });
+  app.get("/missing-file", (_req, _res, next) => {
+    next(Object.assign(new Error("ENOENT"), { statusCode: 404 }));
+  });
+  app.get("/upstream-failure", (_req, _res, next) => {
+    next(Object.assign(new Error("upstream failed"), { status: 503 }));
+  });
   app.use(notFoundHandler());
   app.use(errorHandler(renderer));
   return app;
@@ -109,8 +123,35 @@ describe("error pages", () => {
     expect(html).not.toContain("boom");
   });
 
+  it("keeps the client error status from file-serving errors", async () => {
+    const response: Response = await fetch(`${running.baseUrl}/range-not-satisfiable`);
+    const body: string = await response.text();
+
+    expect(response.status).toBe(416);
+    expect(response.headers.get("content-type")).toMatch(/^text\/plain/);
+    expect(response.headers.get("content-range")).toBe("bytes */100");
+    expect(body).toBe("Range Not Satisfiable");
+  });
+
+  it("shows the page not found page for a 404 from another middleware", async () => {
+    const response: Response = await fetch(`${running.baseUrl}/missing-file`);
+    const html: string = await response.text();
+
+    expect(response.status).toBe(404);
+    expect(html).toMatch(headingPattern(ERROR_PAGES[404].title));
+  });
+
+  it("treats server error statuses from other middleware as a 500", async () => {
+    const response: Response = await fetch(`${running.baseUrl}/upstream-failure`);
+    const html: string = await response.text();
+
+    expect(response.status).toBe(500);
+    expect(html).toMatch(headingPattern(ERROR_PAGES[500].title));
+    expect(entries.filter((entry) => entry.level === "error")).toHaveLength(1);
+  });
+
   it("stops error pages from being cached", async () => {
-    for (const path of ["/no-such-page", "/forbidden", "/fails"]) {
+    for (const path of ["/no-such-page", "/forbidden", "/fails", "/range-not-satisfiable"]) {
       const response: Response = await fetch(`${running.baseUrl}${path}`);
       expect(response.headers.get("cache-control")).toBe("no-store");
     }
@@ -133,9 +174,11 @@ describe("error pages", () => {
     ]);
   });
 
-  it("does not log not found or forbidden responses as errors", async () => {
+  it("does not log client errors as errors", async () => {
     await fetch(`${running.baseUrl}/no-such-page`);
     await fetch(`${running.baseUrl}/forbidden`);
+    await fetch(`${running.baseUrl}/range-not-satisfiable`);
+    await fetch(`${running.baseUrl}/missing-file`);
 
     expect(entries.filter((entry) => entry.level === "error")).toEqual([]);
   });

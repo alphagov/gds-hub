@@ -14,7 +14,7 @@
 - GOV.UK 403, 404 and 500 pages rendered by one central error handler. Error pages are `no-store`.
 - A typed render helper: each template is paired with its view model type at compile time.
 - A Content-Security-Policy that uses a per-request nonce for GOV.UK's one inline script. `'unsafe-inline'` is not allowed in `script-src`.
-- Playwright runs the layout tests twice: in `chromium` and in `chromium-no-js` (`javaScriptEnabled: false`). axe (`wcag2a`, `wcag2aa`, `wcag21aa`, `wcag22aa`) scans every route, including the error pages, both normally and with JavaScript off.
+- Playwright runs the layout tests twice: in `chromium` and in `chromium-no-js` (`javaScriptEnabled: false`). axe (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`; the tags aren't cumulative, so every version's A and AA tags are listed) scans every route, including the error pages, both normally and with JavaScript off.
 
 ## Key files
 
@@ -65,6 +65,7 @@ public/javascripts/application.js  calls GOV.UK Frontend initAll()
 ## Decisions
 
 - **Shared site map:** routes, names and titles live in `src/site-map.ts`, which has no runtime dependencies. The Playwright specs import it directly.
+- **Navigation matching ignores letter case.** Express routing is case-insensitive, so `/Tools` renders the Tools page, and `serviceNavigation` lower-cases the path so the current section is still marked.
 - **Placeholder pages for every section,** so no navigation link leads to a 404 and `listing.njk` is covered by axe.
 - **Test-only routes** for reaching the 403 and 500 pages are mounted only when `NODE_ENV=test`. A unit test checks that they return 404 in production and development.
 - **Unknown routes now return the HTML 404 page,** replacing Phase 0's JSON. The JSON 404 test in `health.test.ts` was removed; `/health` itself is still JSON.
@@ -72,7 +73,7 @@ public/javascripts/application.js  calls GOV.UK Frontend initAll()
 - **Generic header, not the GOV.UK header.** The Hub is an internal tool, not a GOV.UK service, so `base.njk` overrides the `govukHeader` block with `govukGenericHeader` showing the service name. The service name isn't repeated in the service navigation.
 - **CSP nonce rather than a hash** for the inline `js-enabled` script. A hash would change with every govuk-frontend release.
 - **`upgrade-insecure-requests` is only sent in production.** Locally and in tests the app is served over plain HTTP, where upgrading would break asset requests.
-- **403s and 404s are not logged separately.** The request logger already records their status. Unexpected errors (500s) are logged at error level.
+- **Client errors keep their status.** Express and its file-serving middleware attach 4xx statuses to errors, such as the 416 that `res.sendFile` passes on for an unsatisfiable `Range` header. The error handler keeps these: 403 and 404 get their GOV.UK page, and other 4xx statuses get a short plain-text response with the error's headers (for example `Content-Range`). Client errors aren't logged separately, because the request logger records their status. Only unexpected errors become a 500 logged at error level.
 - **If the error page itself fails to render,** the handler sends a plain-text 500 with the request ID. If the response had already started, it closes the connection.
 - **The phase banner has no feedback link** yet, because there's nowhere for feedback to go.
 - **`views/` and `public/` are at the repo root,** so they resolve the same from `src/` and `dist/`. The Dockerfile copies both into the runtime image.

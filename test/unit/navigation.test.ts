@@ -36,6 +36,13 @@ describe("serviceNavigation", () => {
     expect(item).toMatchObject({ current: false, active: true });
   });
 
+  it("marks the section whatever the letter case of the address", () => {
+    const upper = tools.path.toUpperCase();
+
+    expect(itemFor(upper, tools.name)).toMatchObject({ current: true, active: false });
+    expect(itemFor(`${upper}/Example`, tools.name)).toMatchObject({ current: false, active: true });
+  });
+
   it("only marks one item at a time", () => {
     const marked = serviceNavigation(`${policies.path}/example`).filter(
       (item) => item.current || item.active,

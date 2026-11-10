@@ -16,7 +16,9 @@ function withoutTrailingSlash(path: string): string {
 
 /** The service navigation items for a request path, with the current section marked. */
 export function serviceNavigation(requestPath: string): NavigationItem[] {
-  const path = withoutTrailingSlash(requestPath);
+  // Express routing is case-insensitive, so /Tools renders the Tools page.
+  // Section paths are lower case.
+  const path = withoutTrailingSlash(requestPath).toLowerCase();
   return SECTION_LIST.map((section) => ({
     text: section.name,
     href: section.path,

@@ -100,6 +100,15 @@ describe("app", () => {
       expect(response.headers.get("content-type")).toMatch(/^text\/css/);
     });
 
+    it("answers an unsatisfiable range request for the stylesheet with a 416", async () => {
+      const response: Response = await fetch(`${running.baseUrl}${ASSET_PATHS.stylesheet}`, {
+        headers: { range: "bytes=999999999-" },
+      });
+
+      expect(response.status).toBe(416);
+      expect(response.headers.get("content-range")).toMatch(/^bytes \*\/\d+$/);
+    });
+
     it("serves the fonts the stylesheet refers to", async () => {
       const css: string = await (await get(ASSET_PATHS.stylesheet)).text();
       const fontUrl = new RegExp(`url\\(["']?(${ASSET_PATHS.assets}/fonts/[^"')]+\\.woff2)`);

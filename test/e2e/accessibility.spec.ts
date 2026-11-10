@@ -2,7 +2,9 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page, type Route } from "@playwright/test";
 import { HOME_PATH, SECTION_LIST, TEST_ROUTES } from "../../src/site-map.js";
 
-const WCAG_TAGS: readonly string[] = ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"];
+// axe's tags aren't cumulative: WCAG 2.2 AA needs the level A and AA rules
+// from every version.
+const WCAG_TAGS: readonly string[] = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 interface PageUnderTest {
   readonly name: string;
