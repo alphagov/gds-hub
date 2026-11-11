@@ -161,6 +161,14 @@ describe("a freshly migrated database", () => {
     expect(result.rows).toEqual([]);
   });
 
+  it("has no columns that record an IP address", async () => {
+    const result = await db.execute<{ column: string }>(sql`
+      SELECT table_name || '.' || column_name AS column FROM information_schema.columns
+      WHERE table_schema = 'public' AND column_name ~* '(^|_)ip(_|$)|ip_address'`);
+
+    expect(result.rows).toEqual([]);
+  });
+
   it("has a generated, GIN-indexed search vector on every searchable table", async () => {
     const columns = await db.execute<{ table_name: string }>(sql`
       SELECT table_name FROM information_schema.columns

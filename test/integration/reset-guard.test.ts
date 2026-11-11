@@ -35,11 +35,12 @@ const IMPORT_ENTRY: typeof auditLog.$inferInsert = {
   entityId: 1,
   action: "create",
   after: { name: "Imported" },
-  actorName: "Hub import",
-  actorSubject: "system:import",
+  actorName: "system:data_migration",
+  actorSubject: "system:data_migration",
 };
 
-const importEntries = () => db().$count(auditLog, eq(auditLog.actorSubject, "system:import"));
+const importEntries = () =>
+  db().$count(auditLog, eq(auditLog.actorSubject, "system:data_migration"));
 
 /** Everything in the public schema, plus the migration history schema if it exists. */
 async function objectsLeft(): Promise<string[]> {
@@ -209,7 +210,7 @@ describe("db:reset", () => {
         await importer.query("BEGIN");
         await importer.query(
           `INSERT INTO audit_log (entity_type, entity_id, action, after, actor_name, actor_subject)
-           VALUES ('tool', 1, 'create', '{"name": "Imported"}', 'Hub import', 'system:import')`,
+           VALUES ('tool', 1, 'create', '{"name": "Imported"}', 'system:data_migration', 'system:data_migration')`,
         );
 
         // The reset can't lock audit_log until the import commits.
