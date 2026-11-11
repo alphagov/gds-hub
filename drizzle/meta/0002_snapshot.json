@@ -1,6 +1,6 @@
 {
-  "id": "5b7a774f-eda6-4f6c-bc64-5c391de66709",
-  "prevId": "f1fd1e21-d86d-449d-a3e5-1ac1c4d39f03",
+  "id": "c234167e-e5aa-47f6-9dec-2221bcfe698f",
+  "prevId": "3c758672-d7a3-4959-8fe9-0ca977b5cf6f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2019,12 +2019,6 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
-        },
-        "source_ip": {
-          "name": "source_ip",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": false
         },
         "request_id": {
           "name": "request_id",

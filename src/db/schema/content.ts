@@ -60,9 +60,8 @@ export const auditLog = pgTable(
     // MVP: the editor's email. A display name once there is an identity provider.
     actorName: varchar("actor_name", { length: 255 }).notNull(),
     // MVP: the email from the verified Lambda@Edge JWT, or "system:..." for
-    // imports and the seed.
+    // the data migration ("system:data_migration") and the seed.
     actorSubject: varchar("actor_subject", { length: 255 }).notNull(),
-    sourceIp: varchar("source_ip", { length: 64 }),
     requestId: varchar("request_id", { length: 128 }),
     changeSummary: text("change_summary"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

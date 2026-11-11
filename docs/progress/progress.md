@@ -7,6 +7,7 @@ A short summary of each completed phase. The full handover for each phase (what 
 | P0    | Foundations and tooling     | 2026-11-04 | Code complete              | [progress-phase0.md](progress-phase0.md) |
 | P1    | GOV.UK shell and SSR        | 2026-11-09 | Code complete              | [progress-phase1.md](progress-phase1.md) |
 | P2    | Schema, migrations and seed | 2026-11-10 | Code complete, not yet run | [progress-phase2.md](progress-phase2.md) |
+| P3    | Repositories and audit      | 2026-11-11 | Code complete              | [progress-phase3.md](progress-phase3.md) |
 
 ## Phase 0: Foundations and tooling (2026-11-04)
 
@@ -45,6 +46,17 @@ A short summary of each completed phase. The full handover for each phase (what 
 - Vitest integration tests (in `npm test`) create a throwaway database, migrate and seed it, and check foreign keys, RESTRICT and CASCADE, check constraints, the absence of credential columns and search ranking. CI now fails if the migrations are out of date with the schema.
 - **Not run in the sandbox** (no Node.js or Postgres). The developer generates `0000_init.sql` and runs the checks on the host. See [progress-phase2.md](progress-phase2.md#steps-to-run-on-the-host).
 - **Open questions for Phase 5:** contracts need a supplier but the YAML has none; map the real migration status values; decide the primary business unit for teams in more than one unit.
+
+## Phase 3: Repositories and audit service (2026-11-11)
+
+- One typed data-access layer in `src/repositories`. `createRepository(table, entityType)` gives every data table `list`, `getById`, `getBySlug` (slug, or key where there's no slug), `create`, `update` and `remove`. `createRepositories(db)` binds them all, and its `transaction()` method groups several writes into one transaction.
+- **Every write is audited in the same transaction.** The repository locks and reads the record as it was before, makes the change, sets `updated_at`, works out the changed fields and adds an `audit_log` entry. If the audit entry fails, the change is rolled back. An update that changes nothing writes nothing.
+- `Actor` is `{ email, requestId? }`. `createActor` builds it from the editor's email (from the verified Lambda@Edge JWT, Phase 8), and `systemActor("data_migration")` gives `system:data_migration` for the migration. The email is stored as `actor_name` and `actor_subject`. `before` and `after` use camelCase field names.
+- The audit service (`src/services/audit`) has `historyFor`, `recentChanges` and `lastUpdated`. The `ToolDetail` and `InstanceDetail` read models include contracts, suppliers, capabilities, ownership levels, and teams with their business units.
+- `RepositoryError` reports failures by kind (`not_found`, `duplicate`, `in_use`, `invalid_reference`, `invalid_value`, `failed`), without the values involved.
+- A lint rule stops anything outside `src/repositories` and `src/db` using the database.
+- `audit_log.source_ip` was dropped (developer's decision). Nothing was deployed, so the migrations were squashed into a fresh baseline: `0000_init` (generated) plus the hand-written `0001_search` and `0002_audit_log_append_only`. Rebuild local databases with `npm run db:reset`. From now on migrations are append-only.
+- **Written without running anything in the sandbox.** The developer ran lint, typecheck and the tests on the host, and they pass. See [progress-phase3.md](progress-phase3.md#steps-to-run-on-the-host).
 
 ## Before Phase 2: inputs to request
 

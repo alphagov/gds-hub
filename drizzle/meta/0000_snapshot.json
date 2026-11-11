@@ -1,5 +1,5 @@
 {
-  "id": "78385713-4d5e-452d-9243-499aa384cddc",
+  "id": "58c9b169-71c6-4e02-840c-8470d194db28",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -2019,12 +2019,6 @@
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": true
-        },
-        "source_ip": {
-          "name": "source_ip",
-          "type": "varchar(64)",
-          "primaryKey": false,
-          "notNull": false
         },
         "request_id": {
           "name": "request_id",

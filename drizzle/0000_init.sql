@@ -240,7 +240,6 @@ CREATE TABLE "audit_log" (
 	"changed_fields" jsonb DEFAULT '[]'::jsonb NOT NULL,
 	"actor_name" varchar(255) NOT NULL,
 	"actor_subject" varchar(255) NOT NULL,
-	"source_ip" varchar(64),
 	"request_id" varchar(128),
 	"change_summary" text,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
