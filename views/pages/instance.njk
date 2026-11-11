@@ -1,0 +1,61 @@
+{% extends "layouts/catalogue.njk" %}
+{% from "govuk/components/summary-list/macro.njk" import govukSummaryList %}
+{% from "govuk/components/tag/macro.njk" import govukTag %}
+{% from "partials/contract.njk" import contractCard %}
+{% from "partials/instance-access.njk" import accessDetails %}
+{% from "partials/link-list.njk" import linkList %}
+{% from "partials/text.njk" import paragraphs %}
+
+{% block lead %}
+  {{ paragraphs(page.access.description, "govuk-body-l") }}
+{% endblock %}
+
+{% block body %}
+  <h2 class="govuk-heading-m">How to get access</h2>
+  {{ accessDetails(page.access.details) }}
+
+  <h2 class="govuk-heading-m">About this instance</h2>
+  {% set toolHtml %}<a class="govuk-link" href="{{ page.tool.href }}">{{ page.tool.text }}</a>{% endset %}
+  {% set websiteHtml %}
+    {% if page.access.website %}
+      <a class="govuk-link" href="{{ page.access.website.href }}">{{ page.access.website.text }}</a>
+    {% endif %}
+  {% endset %}
+  {% set migrationStatusHtml %}{{ govukTag(page.access.migrationStatus) }}{% endset %}
+  {% set notInUseHtml %}{% if page.access.notInUse %}{{ govukTag(page.access.notInUse) }}{% endif %}{% endset %}
+  {{ govukSummaryList({
+    rows: [
+      { key: { text: "Tool" }, value: { html: toolHtml } },
+      { key: { text: "Website" }, value: { html: websiteHtml } } if page.access.website,
+      { key: { text: "Migration to DSIT identity" }, value: { html: migrationStatusHtml } },
+      { key: { text: "Status" }, value: { html: notInUseHtml } } if page.access.notInUse
+    ].concat(page.rows)
+  }) }}
+
+  {% if page.extraAttributes | length %}
+    <h2 class="govuk-heading-m">More information</h2>
+    {{ govukSummaryList({ rows: page.extraAttributes }) }}
+  {% endif %}
+
+  {% if page.contract %}
+    <h2 class="govuk-heading-m">Contract</h2>
+    {{ contractCard(page.contract) }}
+  {% endif %}
+
+  {% if page.productTeamServices | length %}
+    <h2 class="govuk-heading-m">Used by</h2>
+    {{ linkList(page.productTeamServices) }}
+  {% endif %}
+
+  {% if page.capabilities | length %}
+    <h2 class="govuk-heading-m">Capabilities it provides</h2>
+    <ul class="govuk-list govuk-list--spaced">
+      {% for provided in page.capabilities %}
+        <li>
+          <a class="govuk-link" href="{{ provided.capability.href }}">{{ provided.capability.text }}</a>,
+          for <a class="govuk-link" href="{{ provided.productTeamService.href }}">{{ provided.productTeamService.text }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endblock %}

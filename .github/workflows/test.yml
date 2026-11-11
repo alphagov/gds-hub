@@ -127,6 +127,13 @@ jobs:
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 
+      # The read pages show the synthetic seed data, so the e2e database needs
+      # the migrations and the seed. db:seed refuses a database that has data.
+      - name: Migrate and seed the database
+        run: |
+          npm run db:migrate
+          npm run db:seed
+
       # playwright.config.ts builds and starts the server itself (webServer).
       - run: npm run test:e2e
 

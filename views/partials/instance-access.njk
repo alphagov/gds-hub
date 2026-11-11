@@ -1,0 +1,51 @@
+{#
+  How to get access to an instance (an InstanceAccessViewModel).
+
+  accessDetails(details): a govukDetails for each recorded access field
+  (getting access, authentication, user provisioning, escalation contact), or
+  a message if none are recorded.
+
+  instanceAccess(access): for the tool page. The instance's name (a link to its
+  page, except for a placeholder), description, website, migration status and
+  whether it's in use, then its access details.
+#}
+{% from "govuk/components/details/macro.njk" import govukDetails %}
+{% from "govuk/components/summary-list/macro.njk" import govukSummaryList %}
+{% from "govuk/components/tag/macro.njk" import govukTag %}
+{% from "partials/text.njk" import paragraphs %}
+
+{% macro accessDetails(details) %}
+  {% for detail in details %}
+    {% call govukDetails({ summaryText: detail.summary }) %}
+      {{ paragraphs(detail.paragraphs) }}
+    {% endcall %}
+  {% else %}
+    <p class="govuk-body">No access information has been recorded yet.</p>
+  {% endfor %}
+{% endmacro %}
+
+{% macro instanceAccess(access) %}
+  {% if access.heading %}
+    <h3 class="govuk-heading-s">
+      <a class="govuk-link" href="{{ access.heading.href }}">{{ access.heading.text }}</a>
+    </h3>
+  {% endif %}
+  {{ paragraphs(access.description) }}
+
+  {% set websiteHtml %}
+    {% if access.website %}
+      <a class="govuk-link" href="{{ access.website.href }}">{{ access.website.text }}</a>
+    {% endif %}
+  {% endset %}
+  {% set migrationStatusHtml %}{{ govukTag(access.migrationStatus) }}{% endset %}
+  {% set notInUseHtml %}{% if access.notInUse %}{{ govukTag(access.notInUse) }}{% endif %}{% endset %}
+  {{ govukSummaryList({
+    rows: [
+      { key: { text: "Website" }, value: { html: websiteHtml } } if access.website,
+      { key: { text: "Migration to DSIT identity" }, value: { html: migrationStatusHtml } },
+      { key: { text: "Status" }, value: { html: notInUseHtml } } if access.notInUse
+    ]
+  }) }}
+
+  {{ accessDetails(access.details) }}
+{% endmacro %}

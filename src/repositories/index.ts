@@ -1,4 +1,4 @@
-import { connect, type Database } from "../db/client.js";
+import { connect, type ConnectOptions, type Database } from "../db/client.js";
 import {
   businessUnitProductTeamServices,
   businessUnits,
@@ -24,6 +24,7 @@ import {
 import { runInTransaction, type Executor } from "./executor.js";
 import { createRepository, type Repository } from "./repository.js";
 
+export type { ConnectOptions } from "../db/client.js";
 export type { EntityType } from "../db/entity-types.js";
 export type { AuditAction, AuditEntry, AuditLogRepository } from "./audit-log-repository.js";
 export type { CatalogueReadRepository } from "./catalogue-read-repository.js";
@@ -151,8 +152,11 @@ export interface RepositoryConnection {
 }
 
 /** Opens a connection pool and returns the repositories bound to it. */
-export function connectRepositories(databaseUrl: string): RepositoryConnection {
-  const connection = connect(databaseUrl);
+export function connectRepositories(
+  databaseUrl: string,
+  options: ConnectOptions = {},
+): RepositoryConnection {
+  const connection = connect(databaseUrl, options);
   return {
     repositories: createRepositories(connection.db),
     close: () => connection.close(),

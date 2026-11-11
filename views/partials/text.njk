@@ -1,0 +1,9 @@
+{#
+  paragraphs(texts, classes): one <p> for each string in texts (from the
+  presenters' paragraphs()). classes defaults to "govuk-body".
+#}
+{% macro paragraphs(texts, classes = "govuk-body") %}
+  {% for text in texts %}
+    <p class="{{ classes }}">{{ text }}</p>
+  {% endfor %}
+{% endmacro %}

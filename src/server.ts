@@ -1,8 +1,16 @@
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig, type Config } from "./config.js";
 import { createJsonLogger } from "./lib/logger.js";
+import { connectRepositories } from "./repositories/index.js";
+import { createCatalogueService } from "./services/catalogue/catalogue-service.js";
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
+
+// Read pages query the database on every request. These stop a slow or
+// unreachable database from holding requests (and pool connections) open
+// indefinitely: the request gets the 500 page instead.
+const DATABASE_CONNECTION_TIMEOUT_MS = 5_000;
+const DATABASE_STATEMENT_TIMEOUT_MS = 10_000;
 
 function readConfig(): Config {
   try {
@@ -26,7 +34,18 @@ const logger = createJsonLogger({
   base: { service: "gds-hub", version: config.version },
 });
 
-const server = createApp({ config, logger }).listen(config.port, (err?: Error) => {
+// The pool connects lazily, so a database that isn't up yet doesn't stop the
+// app starting: read pages fail with the 500 page until it is reachable.
+const database = connectRepositories(config.databaseUrl, {
+  connectionTimeoutMs: DATABASE_CONNECTION_TIMEOUT_MS,
+  statementTimeoutMs: DATABASE_STATEMENT_TIMEOUT_MS,
+  onIdleError: (err) => {
+    logger.error("idle database connection failed", { err });
+  },
+});
+const catalogue = createCatalogueService(database.repositories);
+
+const server = createApp({ config, logger, catalogue }).listen(config.port, (err?: Error) => {
   if (err) {
     logger.error("failed to start server", { err });
     process.exit(1);
@@ -47,7 +66,15 @@ function shutdown(signal: NodeJS.Signals): void {
       logger.error("error during shutdown", { err });
       process.exit(1);
     }
-    process.exit(0);
+    database.close().then(
+      () => {
+        process.exit(0);
+      },
+      (closeError: unknown) => {
+        logger.error("error closing the database pool", { err: closeError });
+        process.exit(1);
+      },
+    );
   });
 }
 

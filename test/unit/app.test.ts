@@ -11,6 +11,7 @@ import {
   TEST_ROUTES,
   type Section,
 } from "../../src/site-map.js";
+import { fakeCatalogue } from "./catalogue-fixtures.js";
 import { startApp, testConfig, type RunningApp } from "./helpers.js";
 
 function headingOf(html: string): string | undefined {
@@ -21,7 +22,9 @@ describe("app", () => {
   let running: RunningApp;
 
   beforeAll(async () => {
-    running = await startApp(createApp({ config: testConfig, logger: silentLogger }));
+    running = await startApp(
+      createApp({ config: testConfig, logger: silentLogger, catalogue: fakeCatalogue() }),
+    );
   });
 
   afterAll(async () => {
@@ -51,7 +54,7 @@ describe("app", () => {
       }
     });
 
-    it.each(SECTION_LIST)("renders the $name placeholder page", async (section: Section) => {
+    it.each(SECTION_LIST)("renders the $name section page", async (section: Section) => {
       const response: Response = await get(section.path);
       const html: string = await response.text();
 
@@ -153,7 +156,9 @@ describe("app", () => {
       "do not exist in %s",
       async (nodeEnv: Config["nodeEnv"]) => {
         const config: Config = { ...testConfig, nodeEnv };
-        const other: RunningApp = await startApp(createApp({ config, logger: silentLogger }));
+        const other: RunningApp = await startApp(
+          createApp({ config, logger: silentLogger, catalogue: fakeCatalogue() }),
+        );
         try {
           expect((await fetch(`${other.baseUrl}${TEST_ROUTES.forbidden}`)).status).toBe(404);
           expect((await fetch(`${other.baseUrl}${TEST_ROUTES.error}`)).status).toBe(404);

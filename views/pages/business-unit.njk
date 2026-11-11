@@ -1,0 +1,37 @@
+{% extends "layouts/catalogue.njk" %}
+{% from "govuk/components/summary-list/macro.njk" import govukSummaryList %}
+{% from "partials/link-list.njk" import linkList %}
+{% from "partials/text.njk" import paragraphs %}
+
+{% block lead %}
+  {{ paragraphs(page.description, "govuk-body-l") }}
+{% endblock %}
+
+{% block body %}
+  {% if page.parent or page.website or page.rows | length %}
+    {% set parentHtml %}
+      {% if page.parent %}
+        <a class="govuk-link" href="{{ page.parent.href }}">{{ page.parent.text }}</a>
+      {% endif %}
+    {% endset %}
+    {% set websiteHtml %}
+      {% if page.website %}
+        <a class="govuk-link" href="{{ page.website.href }}">{{ page.website.text }}</a>
+      {% endif %}
+    {% endset %}
+    {{ govukSummaryList({
+      rows: [
+        { key: { text: "Part of" }, value: { html: parentHtml } } if page.parent,
+        { key: { text: "Website" }, value: { html: websiteHtml } } if page.website
+      ].concat(page.rows)
+    }) }}
+  {% endif %}
+
+  {% if page.children | length %}
+    <h2 class="govuk-heading-m">Business units in {{ page.title }}</h2>
+    {{ linkList(page.children) }}
+  {% endif %}
+
+  <h2 class="govuk-heading-m">Products, teams and services</h2>
+  {{ linkList(page.productTeamServices, "No products, teams or services have been recorded for this business unit yet.") }}
+{% endblock %}

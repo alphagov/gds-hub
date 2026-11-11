@@ -1,0 +1,29 @@
+{% extends "layouts/catalogue.njk" %}
+{% from "partials/link-list.njk" import linkList %}
+{% from "partials/text.njk" import paragraphs %}
+
+{% block lead %}
+  {{ paragraphs(page.description, "govuk-body-l") }}
+{% endblock %}
+
+{% block body %}
+  {% if page.plans | length %}
+    <h2 class="govuk-heading-m">Plans</h2>
+    {{ paragraphs(page.plans) }}
+  {% endif %}
+
+  <h2 class="govuk-heading-m">Tools</h2>
+  {{ linkList(page.tools, "No tools have been recorded for this capability yet.") }}
+
+  {% if page.provisions | length %}
+    <h2 class="govuk-heading-m">Who it is provided to</h2>
+    <ul class="govuk-list govuk-list--spaced">
+      {% for provision in page.provisions %}
+        <li>
+          <a class="govuk-link" href="{{ provision.productTeamService.href }}">{{ provision.productTeamService.text }}</a>,
+          through <a class="govuk-link" href="{{ provision.instance.href }}">{{ provision.instance.text }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endblock %}

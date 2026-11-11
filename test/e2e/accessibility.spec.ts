@@ -11,9 +11,18 @@ interface PageUnderTest {
   readonly path: string;
 }
 
+// One page of each type, from the synthetic seed. Run `npm run db:reset`
+// before running these locally.
 const PAGES: readonly PageUnderTest[] = [
   { name: "home", path: HOME_PATH },
   ...SECTION_LIST.map(({ name, path }) => ({ name: name.toLowerCase(), path })),
+  { name: "capability", path: "/capabilities/continuous-integration" },
+  { name: "tool", path: "/tools/pipeline-pilot" },
+  { name: "tool with only a placeholder instance", path: "/tools/contrast-lens" },
+  { name: "instance", path: "/instances/sentinel-scan-gds" },
+  { name: "product, team or service", path: "/services/build-tools-team" },
+  { name: "business unit", path: "/business-units/developer-experience" },
+  { name: "vendor", path: "/vendors/kestrel-cloud" },
   { name: "page not found", path: "/no-such-page" },
   { name: "forbidden", path: TEST_ROUTES.forbidden },
   { name: "server error", path: TEST_ROUTES.error },
@@ -50,6 +59,25 @@ test.describe("with JavaScript", () => {
       await expectNoViolations(page);
     });
   }
+});
+
+test.describe("on a small screen", () => {
+  test.use({ viewport: { width: 375, height: 800 } });
+
+  test("the tool page has no accessibility violations with the contents closed", async ({
+    page,
+  }) => {
+    await page.goto("/tools/pipeline-pilot");
+
+    await expectNoViolations(page);
+  });
+
+  test("the tool page has no accessibility violations with the contents open", async ({ page }) => {
+    await page.goto("/tools/pipeline-pilot");
+    await page.getByRole("navigation", { name: "Contents" }).locator("summary").click();
+
+    await expectNoViolations(page);
+  });
 });
 
 test.describe("without JavaScript", () => {

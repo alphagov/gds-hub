@@ -1,0 +1,12 @@
+{#
+  contractCard(contract, headingLevel): a contract (ContractViewModel) as a
+  govukSummaryList card. headingLevel is the card title's heading level.
+#}
+{% from "govuk/components/summary-list/macro.njk" import govukSummaryList %}
+
+{% macro contractCard(contract, headingLevel = 3) %}
+  {{ govukSummaryList({
+    card: { title: { text: contract.title, headingLevel: headingLevel } },
+    rows: contract.rows
+  }) }}
+{% endmacro %}

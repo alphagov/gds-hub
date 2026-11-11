@@ -1,0 +1,18 @@
+{#
+  The left-hand contents (page.contents): capability groups and their capabilities.
+
+  From the desktop breakpoint up the list is always shown. On smaller screens it
+  is inside a govukDetails, which opens and closes without JavaScript.
+  application.css hides whichever copy doesn't apply with display: none, so
+  assistive technology only ever finds one list.
+#}
+{% from "govuk/components/details/macro.njk" import govukDetails %}
+
+<nav class="app-contents" aria-label="{{ page.contents.label }}">
+  <div class="app-contents__full">
+    {% include "partials/contents-list.njk" %}
+  </div>
+  {% call govukDetails({ summaryText: page.contents.label, classes: "app-contents__collapsible" }) %}
+    {% include "partials/contents-list.njk" %}
+  {% endcall %}
+</nav>
