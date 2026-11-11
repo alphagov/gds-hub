@@ -1,4 +1,4 @@
-import { connect } from "../db/client.js";
+import { connect, type Database } from "../db/client.js";
 import {
   businessUnitProductTeamServices,
   businessUnits,
@@ -51,8 +51,8 @@ export {
   type WriteOptions,
 } from "./repository.js";
 
-/** Every repository, bound to the pool or to one transaction. */
-export interface Repositories {
+/** The table repositories and the audit log, bound to the pool or to one transaction. */
+export interface TransactionRepositories {
   readonly vendors: Repository<typeof vendors>;
   readonly suppliers: Repository<typeof suppliers>;
   readonly tools: Repository<typeof tools>;
@@ -70,14 +70,22 @@ export interface Repositories {
   readonly pages: Repository<typeof pages>;
   /** Reads the audit log. Entries are only added by the writes above. */
   readonly auditLog: AuditLogRepository;
-  /** Read models for the catalogue's detail pages. */
-  readonly catalogue: CatalogueReadRepository;
   /**
    * Runs `work` with repositories bound to one transaction, so several writes
    * (and their audit entries) are kept or rolled back together. If `work`
    * throws, everything it wrote is rolled back and the error is rethrown.
    */
-  transaction<R>(work: (repositories: Repositories) => Promise<R>): Promise<R>;
+  transaction<R>(work: (repositories: TransactionRepositories) => Promise<R>): Promise<R>;
+}
+
+/** Every repository, bound to the pool. */
+export interface Repositories extends TransactionRepositories {
+  /**
+   * Read models for the catalogue's detail pages. Not offered inside
+   * transaction(): each read model is loaded from its own consistent snapshot
+   * of the database, which an open transaction can't give.
+   */
+  readonly catalogue: CatalogueReadRepository;
 }
 
 const factories = {
@@ -104,8 +112,7 @@ const factories = {
   pages: createRepository(pages, "page"),
 } as const;
 
-/** The repositories, bound to the pool or to an open transaction. */
-export function createRepositories(executor: Executor): Repositories {
+function createTransactionRepositories(executor: Executor): TransactionRepositories {
   return {
     vendors: factories.vendors(executor),
     suppliers: factories.suppliers(executor),
@@ -123,10 +130,17 @@ export function createRepositories(executor: Executor): Repositories {
     businessUnitProductTeamServices: factories.businessUnitProductTeamServices(executor),
     pages: factories.pages(executor),
     auditLog: createAuditLogRepository(executor),
-    catalogue: createCatalogueReadRepository(executor),
-    transaction<R>(work: (repositories: Repositories) => Promise<R>): Promise<R> {
-      return runInTransaction(executor, (tx) => work(createRepositories(tx)));
+    transaction<R>(work: (repositories: TransactionRepositories) => Promise<R>): Promise<R> {
+      return runInTransaction(executor, (tx) => work(createTransactionRepositories(tx)));
     },
+  };
+}
+
+/** The repositories, bound to the pool. */
+export function createRepositories(db: Database): Repositories {
+  return {
+    ...createTransactionRepositories(db),
+    catalogue: createCatalogueReadRepository(db),
   };
 }
 

@@ -2,7 +2,7 @@ import type {
   AuditAction,
   AuditEntry,
   EntityType,
-  Repositories,
+  TransactionRepositories,
 } from "../../repositories/index.js";
 
 export const DEFAULT_HISTORY_LIMIT = 50;
@@ -54,7 +54,9 @@ function checkedLimit(limit: number | undefined, fallback: number, maximum: numb
   return Math.min(limit, maximum);
 }
 
-export function createAuditService(repositories: Pick<Repositories, "auditLog">): AuditService {
+export function createAuditService(
+  repositories: Pick<TransactionRepositories, "auditLog">,
+): AuditService {
   const { auditLog } = repositories;
 
   return {

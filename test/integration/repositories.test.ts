@@ -291,6 +291,28 @@ describe("updating a record", () => {
     expect(await repos.vendors.getById(vendor.id)).toEqual(vendor);
   });
 
+  it("dates a change by when it was made, not when its transaction started", async () => {
+    const vendor = await newVendor();
+    let committedMeanwhile: Date | undefined;
+    const { record } = await repos.transaction(async (tx) => {
+      await tx.vendors.getById(vendor.id);
+      // Make sure the other change is clearly later than this transaction's start.
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const other = await repos.vendors.update(
+        vendor.id,
+        { description: "Saved while the transaction was open" },
+        otherEditor,
+      );
+      committedMeanwhile = other.record.updatedAt;
+      return tx.vendors.update(vendor.id, { description: "Saved last" }, editor);
+    });
+
+    expect(committedMeanwhile).toBeDefined();
+    expect(record.updatedAt.getTime()).toBeGreaterThanOrEqual(committedMeanwhile?.getTime() ?? 0);
+    const [latest] = (await auditEntriesFor("vendor", vendor.id)).reverse();
+    expect(latest?.createdAt).toEqual(record.updatedAt);
+  });
+
   it("each of two concurrent updates records the value it replaced", async () => {
     const vendor = await newVendor();
     await Promise.all([
@@ -377,6 +399,77 @@ describe("removing a record", () => {
     await repos.supplierTools.remove(link.id, editor);
     const entry = await onlyEntry("supplier_tool", link.id, "delete");
     expect(entry.before).toMatchObject({ supplierId: supplier.id, toolId: tool.id });
+  });
+
+  it("removes and audits the links that would otherwise be deleted with it", async () => {
+    const tool = await newTool();
+    const supplier = await repos.suppliers.create({ name: unique("Supplier") }, editor);
+    const link = await repos.supplierTools.create(
+      { supplierId: supplier.id, toolId: tool.id },
+      editor,
+    );
+
+    await repos.suppliers.remove(supplier.id, editor, { changeSummary: "No longer used" });
+
+    expect(await repos.supplierTools.getById(link.id)).toBeUndefined();
+    const entry = await onlyEntry("supplier_tool", link.id, "delete");
+    expect(entry).toMatchObject({
+      actorSubject: "editor@example.com",
+      requestId: "test-request-1",
+      changeSummary: `Removed with supplier ${supplier.id}`,
+    });
+    expect(entry.before).toMatchObject({ supplierId: supplier.id, toolId: tool.id });
+    await onlyEntry("supplier", supplier.id, "delete");
+  });
+
+  it("removes and audits links in every table that depends on the record", async () => {
+    const instance = await newInstance();
+    const key = unique("team");
+    const team = await repos.productTeamServices.create(
+      { key, slug: key, name: `Team ${key}` },
+      editor,
+    );
+    const capabilityKey = unique("capability");
+    const capability = await repos.capabilities.create(
+      { key: capabilityKey, name: `Capability ${capabilityKey}` },
+      editor,
+    );
+    const usage = await repos.productTeamServiceInstances.create(
+      { productTeamServiceId: team.id, instanceId: instance.id },
+      editor,
+    );
+    const provided = await repos.instanceCapabilities.create(
+      { instanceId: instance.id, capabilityId: capability.id, productTeamServiceId: team.id },
+      editor,
+    );
+
+    await repos.instances.remove(instance.id, editor);
+
+    await onlyEntry("product_team_service_instance", usage.id, "delete");
+    await onlyEntry("instance_capability", provided.id, "delete");
+    expect(await repos.productTeamServices.getById(team.id)).toEqual(team);
+    expect(await repos.capabilities.getById(capability.id)).toEqual(capability);
+  });
+
+  it("keeps its links if the record itself can't be removed", async () => {
+    const tool = await newTool();
+    const supplier = await repos.suppliers.create({ name: unique("Supplier") }, editor);
+    const link = await repos.supplierTools.create(
+      { supplierId: supplier.id, toolId: tool.id },
+      editor,
+    );
+    // An instance stops the tool being removed.
+    const key = unique("instance");
+    await repos.instances.create({ key, slug: key, name: "Instance", toolId: tool.id }, editor);
+
+    await expect(repos.tools.remove(tool.id, editor)).rejects.toMatchObject({
+      kind: "in_use",
+    });
+
+    expect(await repos.supplierTools.getById(link.id)).toEqual(link);
+    expect((await auditEntriesFor("supplier_tool", link.id)).map((entry) => entry.action)).toEqual([
+      "create",
+    ]);
   });
 });
 

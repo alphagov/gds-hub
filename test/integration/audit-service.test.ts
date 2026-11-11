@@ -101,6 +101,32 @@ describe("history for a record", () => {
     expect(await audit.historyFor("vendor", vendor.id)).toHaveLength(1);
   });
 
+  it("puts a change made late in a long transaction after one committed while it was open", async () => {
+    const vendor = await newVendor();
+    await repos.transaction(async (tx) => {
+      await tx.vendors.getById(vendor.id);
+      // Make sure the other change is clearly later than this transaction's start.
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      await repos.vendors.update(
+        vendor.id,
+        { description: "Saved while the transaction was open" },
+        otherEditor,
+      );
+      await tx.vendors.update(vendor.id, { description: "Saved last" }, editor);
+    });
+
+    const history = await audit.historyFor("vendor", vendor.id);
+    expect(history.map((entry) => entry.after?.description)).toEqual([
+      "Saved last",
+      "Saved while the transaction was open",
+      "Original description",
+    ]);
+    expect(await audit.lastUpdated("vendor", vendor.id)).toMatchObject({
+      by: "editor@example.com",
+      action: "update",
+    });
+  });
+
   it("lists changes made in one transaction newest first", async () => {
     const vendor = await newVendor();
     await repos.transaction(async (tx) => {

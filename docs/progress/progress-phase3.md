@@ -44,16 +44,19 @@ test/integration/repositories.test.ts, audit-service.test.ts, read-models.test.t
 Services and routes import everything from `src/repositories/index.ts`. They can't import `src/db`, `drizzle-orm` or `pg` (lint).
 
 ```ts
-createRepositories(executor: Executor): Repositories
+createRepositories(db: Database): Repositories
 connectRepositories(databaseUrl: string): { repositories: Repositories; close(): Promise<void> }
 
-interface Repositories {
+interface TransactionRepositories {
   vendors, suppliers, tools, supplierTools, contracts, ownershipLevels, instances,
   capabilities, capabilityTools, productTeamServices, productTeamServiceInstances,
   instanceCapabilities, businessUnits, businessUnitProductTeamServices, pages: Repository<typeof table>
   auditLog: AuditLogRepository        // read only
-  catalogue: CatalogueReadRepository  // read models
-  transaction<R>(work: (repositories: Repositories) => Promise<R>): Promise<R>
+  transaction<R>(work: (repositories: TransactionRepositories) => Promise<R>): Promise<R>
+}
+
+interface Repositories extends TransactionRepositories {
+  catalogue: CatalogueReadRepository  // read models: on the pool only, not inside transaction()
 }
 
 interface Repository<T> {
@@ -83,7 +86,8 @@ repositories.catalogue.getInstanceDetail(slug): Promise<InstanceDetail | undefin
 - **Managed fields:** `id`, `createdAt` and `updatedAt` are removed from caller input at runtime too, along with fields the table doesn't have.
 - **`getBySlug`:** uses the `slug` column, or `key` on tables without one (capabilities, ownership levels, business units), the same rule as the `search_index` view. It isn't on suppliers, contracts or the join tables, and calling it there is a compile error.
 - **`update`:** an empty `changedFields` means nothing changed and nothing was written.
-- **`transaction`:** writes inside it are kept or rolled back together. Each write also has its own savepoint, so a caller can catch a failed write (for example a duplicate slug) and carry on.
+- **`transaction`:** writes inside it are kept or rolled back together. Each write also has its own savepoint, so a caller can catch a failed write (for example a duplicate slug) and carry on. The repositories it gives don't include `catalogue` (see [Read models](#read-models)).
+- **`remove` and join tables:** the database deletes join-table rows with the record they link (ON DELETE CASCADE), which would leave them with no audit entry. So `remove` first removes each of those rows through its own repository, with a "delete" entry whose change summary is "Removed with supplier 12" (for example). If the record itself can't be removed (`in_use`), nothing is removed. The tables are found from the schema's foreign keys. If a cascading table ever has no repository, removal is refused rather than deleting rows without an audit entry.
 
 ### Errors
 
@@ -134,13 +138,13 @@ interface Actor {
 | `delete` | full record | null        | every field                         |
 
 - `before` and `after` use the code's camelCase field names, as the seed does (confirmed by the developer). Dates are ISO 8601 strings.
-- `updated_at` is set to `now()`, the transaction's start time, so it equals the audit entry's `created_at`.
 - The record is locked (`SELECT … FOR UPDATE`) before it is read. Concurrent updates take turns, and each entry's `before` is the value it actually replaced.
+- **When a change happened:** `clock_timestamp()` is read after the lock is taken, to the millisecond, and stored as both the record's `updated_at` (and `created_at` on a create) and the audit entry's `created_at`. `now()` isn't used because it's the transaction's start time: a transaction that started earlier but changed the record later would date its change before one it actually replaced, and history would show the wrong change as the latest.
 - **What counts as a change:** fields are compared as the database stores them. Null and missing are the same, dates compare by time, jsonb objects ignore key order, and lists compare in order. The repository checks the requested values before writing. It then checks the stored row again and rolls back if the database stored the same values.
 
 ## Read models
 
-Each is loaded in one read-only `REPEATABLE READ` transaction, or within the caller's transaction if there is one.
+Each is loaded from the pool in its own read-only `REPEATABLE READ` transaction, so the record and everything linked to it come from one consistent snapshot. `catalogue` isn't offered inside `repositories.transaction()`: that transaction is READ COMMITTED (as writes need), where each query can see different committed data, and its isolation can't be raised once it has run a query.
 
 - **`ToolDetail`**, shaped after the current Hub's tool page:
   - `tool`
@@ -178,6 +182,10 @@ Contracts are shown to everyone, as on the current Hub (developer's decision). T
   - `recentChanges` defaults to 20, capped at 100.
   - A limit that isn't a positive whole number is refused.
 - **`lastUpdated` reads the audit log, not `updated_at`,** so it can also say who made the change.
+- **Changes from code review** (all confirmed and fixed, each with a test that fails without the fix):
+  - Change times come from `clock_timestamp()` after the lock, not `now()`, so history is in the order changes were made.
+  - Read models are only loaded from the pool, in their own snapshot, and not inside write transactions.
+  - Join-table rows deleted with a record are removed and audited explicitly first.
 - **The migrations were squashed into a fresh baseline** (developer's decision).
   - **Why:** nothing has been deployed and the developer's local database was the only one. CI creates a new database on every run.
   - **What changed:** `drizzle/` was regenerated: `0000_init` from the current schema (so it has no `source_ip`), then the hand-written `0001_search` and `0002_audit_log_append_only` registered again with `drizzle-kit generate --custom`, unchanged.

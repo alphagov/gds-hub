@@ -1,5 +1,5 @@
 import { asc, eq, getTableColumns, getTableName, sql } from "drizzle-orm";
-import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
+import { getTableConfig, type PgColumn, type PgTable } from "drizzle-orm/pg-core";
 import type { Transaction } from "../db/client.js";
 import {
   entityTypeOf,
@@ -7,6 +7,7 @@ import {
   type AuditedTableName,
   type EntityType,
 } from "../db/entity-types.js";
+import { APP_TABLES } from "../db/tables.js";
 import { assertValidActor, type Actor } from "../services/audit/actor.js";
 import { changedFields, valuesEqual } from "../services/audit/changes.js";
 import { recordAuditEntry } from "./audit-log-repository.js";
@@ -79,8 +80,11 @@ export interface BaseRepository<T extends AuditedTable> {
   ): Promise<UpdateResult<RecordOf<T>>>;
   /**
    * Deletes a record and adds a "delete" audit entry. Returns the deleted
-   * record. Throws RepositoryError("not_found") if there is no such record,
-   * or "in_use" if another record still links to it.
+   * record. Rows in join tables that the database would delete with it (ON
+   * DELETE CASCADE) are removed first, each with its own "delete" entry.
+   * Throws RepositoryError("not_found") if there is no such record, or
+   * "in_use" if another record still links to it (in which case nothing is
+   * removed).
    */
   remove(id: number, actor: Actor, options?: WriteOptions): Promise<RecordOf<T>>;
 }
@@ -136,6 +140,61 @@ interface TableDetails {
   readonly writableFields: ReadonlySet<string>;
   readonly urlIdentifier: PgColumn | undefined;
   readonly listOrder: readonly PgColumn[];
+}
+
+/** A table whose rows the database deletes along with a row of another table. */
+interface CascadeDependent {
+  readonly details: TableDetails;
+  /** The column in the dependent table that holds the other row's id. */
+  readonly column: PgColumn;
+}
+
+/** Every table with a repository, so a removal can find the tables that cascade from it. */
+const repositoryTables = new Map<PgTable, TableDetails>();
+const dependentsCache = new Map<PgTable, readonly CascadeDependent[]>();
+
+/**
+ * The tables whose rows are deleted (ON DELETE CASCADE) with a row of
+ * `parent`. Each must have a repository, so their removal can be audited.
+ */
+function cascadeDependents(parent: TableDetails): readonly CascadeDependent[] {
+  const cached = dependentsCache.get(parent.table);
+  if (cached !== undefined) return cached;
+
+  const dependents = APP_TABLES.flatMap((child) =>
+    getTableConfig(child)
+      .foreignKeys.filter((foreignKey) => foreignKey.onDelete === "cascade")
+      .map((foreignKey) => foreignKey.reference())
+      .filter((reference) => reference.foreignTable === parent.table)
+      .map((reference): CascadeDependent => {
+        const details = repositoryTables.get(child);
+        const [column] = reference.columns;
+        if (details === undefined || column === undefined || reference.columns.length !== 1) {
+          throw new Error(
+            `removing a ${parent.entityType} would delete rows in "${getTableName(child)}" that can't be audited`,
+          );
+        }
+        return { details, column };
+      }),
+  );
+  dependentsCache.set(parent.table, dependents);
+  return dependents;
+}
+
+/**
+ * The time of a change, read after the write has locked the record. now()
+ * would give the transaction's start time instead, which can be earlier than
+ * a change to the same record that committed while this transaction waited.
+ * Milliseconds, the precision of a JavaScript Date, so the record and its
+ * audit entry store exactly the same value.
+ */
+async function changeTime(tx: Transaction): Promise<Date> {
+  const result = await tx.execute<{ milliseconds: string }>(
+    sql`SELECT floor(extract(epoch FROM clock_timestamp()) * 1000)::bigint::text AS milliseconds`,
+  );
+  const [row] = result.rows;
+  if (row === undefined) throw new Error("the database did not return the time");
+  return new Date(Number(row.milliseconds));
 }
 
 const MANAGED_FIELDS: ReadonlySet<string> = new Set<ManagedField>(["id", "createdAt", "updatedAt"]);
@@ -197,6 +256,26 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
     return row;
   };
 
+  /**
+   * Removes, through their own repositories, the rows the database would
+   * otherwise delete with this record without an audit entry.
+   */
+  const removeDependents = async (tx: Transaction, id: number, actor: Actor): Promise<void> => {
+    for (const dependent of cascadeDependents(details)) {
+      const { table: childTable } = dependent.details;
+      const rows = await tx
+        .select({ id: childTable.id })
+        .from(childTable)
+        .where(eq(dependent.column, id))
+        .orderBy(asc(childTable.id))
+        .for("update");
+      const child = bind(dependent.details, tx);
+      for (const row of rows) {
+        await child.remove(idOf(row), actor, { changeSummary: `Removed with ${entityType} ${id}` });
+      }
+    }
+  };
+
   const access: TableAccess = {
     entityType,
 
@@ -226,7 +305,14 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
       const input = writableValues(details, values);
       try {
         return await runInTransaction(executor, async (tx) => {
-          const after = firstRow(await tx.insert(table).values(input).returning(), "new record");
+          const changedAt = await changeTime(tx);
+          const after = firstRow(
+            await tx
+              .insert(table)
+              .values({ ...input, createdAt: changedAt, updatedAt: changedAt })
+              .returning(),
+            "new record",
+          );
           await recordAuditEntry(tx, {
             entityType,
             entityId: idOf(after),
@@ -236,6 +322,7 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
             changedFields: Object.keys(after),
             actor,
             changeSummary: options.changeSummary,
+            changedAt,
           });
           return after;
         });
@@ -255,12 +342,11 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
           );
           if (requested.length === 0) return { record: before, changedFields: [] };
 
-          // now() is the transaction's start time, so updated_at matches the
-          // audit entry's created_at.
+          const changedAt = await changeTime(tx);
           const after = firstRow(
             await tx
               .update(table)
-              .set({ ...input, updatedAt: sql`now()` })
+              .set({ ...input, updatedAt: changedAt })
               .where(eq(table.id, id))
               .returning(),
             "updated record",
@@ -279,6 +365,7 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
             changedFields: fields,
             actor,
             changeSummary: options.changeSummary,
+            changedAt,
           });
           return { record: after, changedFields: fields };
         });
@@ -293,6 +380,11 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
       try {
         return await runInTransaction(executor, async (tx) => {
           const before = await lockRow(tx, id);
+          // Locking the record stops new links to it being added meanwhile:
+          // adding one has to wait for this transaction, then fails.
+          await removeDependents(tx, id, actor);
+
+          const changedAt = await changeTime(tx);
           const deleted = firstRow(
             await tx.delete(table).where(eq(table.id, id)).returning(),
             "removed record",
@@ -306,6 +398,7 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
             changedFields: Object.keys(before),
             actor,
             changeSummary: options.changeSummary,
+            changedAt,
           });
           return deleted;
         });
@@ -334,6 +427,9 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
  * Every write runs in its own transaction (a savepoint inside an open one):
  * it locks and reads the current row, makes the change, sets updated_at and
  * adds the audit entry. If any step fails, the whole write is rolled back.
+ *
+ * The repository is also registered, so removing a record in another table
+ * that cascades to this one removes and audits this table's rows first.
  */
 export function createRepository<T extends AuditedTable>(
   table: T,
@@ -357,6 +453,8 @@ export function createRepository<T extends AuditedTable>(
     urlIdentifier: columns.slug ?? columns.key,
     listOrder: nameColumn === undefined ? [audited.id] : [nameColumn, audited.id],
   };
+  repositoryTables.set(audited, details);
+  dependentsCache.clear();
 
   // The one place the table's own types are restored (see "Implementation").
   return (executor) => bind(details, executor) as unknown as Repository<T>;

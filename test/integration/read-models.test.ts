@@ -1,5 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createRepositories, type Repositories } from "../../src/repositories/index.js";
+import {
+  createRepositories,
+  type Repositories,
+  type TransactionRepositories,
+} from "../../src/repositories/index.js";
 import { systemActor } from "../../src/services/audit/actor.js";
 import { createMigratedTestDatabase, type TestDatabase } from "./test-database.js";
 
@@ -17,7 +21,7 @@ const ids = {
   newerContract: 0,
 };
 
-async function buildFixtures(r: Repositories): Promise<void> {
+async function buildFixtures(r: TransactionRepositories): Promise<void> {
   const vendor = await r.vendors.create(
     { slug: "acme-cloud", name: "Acme Cloud", url: "https://acme.example.com" },
     actor,
@@ -403,5 +407,12 @@ describe("instance detail", () => {
 
   it("is undefined for a slug that no instance has", async () => {
     expect(await repos.catalogue.getInstanceDetail("no-such-instance")).toBeUndefined();
+  });
+});
+
+describe("read models", () => {
+  it("are not offered inside a write transaction, so each is read from one snapshot", async () => {
+    const offered = await repos.transaction((tx) => Promise.resolve("catalogue" in tx));
+    expect(offered).toBe(false);
   });
 });

@@ -26,13 +26,15 @@ export function runInTransaction<R>(
 }
 
 /**
- * Runs several reads against one consistent snapshot of the database. Inside
- * an open transaction the reads simply join it.
+ * Runs several reads against one consistent snapshot of the database, in a
+ * new read-only REPEATABLE READ transaction. It always starts its own
+ * transaction: an open one may be READ COMMITTED, where each statement can
+ * see different committed data, and its isolation can't be raised once it
+ * has run a query.
  */
 export function runReadOnly<R>(
-  executor: Executor,
-  work: (reader: Executor) => Promise<R>,
+  db: Database,
+  work: (reader: Transaction) => Promise<R>,
 ): Promise<R> {
-  if (isTransaction(executor)) return work(executor);
-  return executor.transaction(work, READ_SNAPSHOT);
+  return db.transaction(work, READ_SNAPSHOT);
 }

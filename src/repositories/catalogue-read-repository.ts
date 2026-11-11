@@ -1,5 +1,6 @@
 import { asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import type { Database } from "../db/client.js";
 import type { EntityType } from "../db/entity-types.js";
 import {
   businessUnitProductTeamServices,
@@ -234,13 +235,17 @@ async function loadInstanceDetail(
   };
 }
 
-export function createCatalogueReadRepository(executor: Executor): CatalogueReadRepository {
+/**
+ * Read models are always loaded from the pool, each in its own snapshot, so
+ * they're consistent even while other transactions change the records.
+ */
+export function createCatalogueReadRepository(db: Database): CatalogueReadRepository {
   const load = async <R>(
     entityType: EntityType,
     work: (reader: Executor) => Promise<R>,
   ): Promise<R> => {
     try {
-      return await runReadOnly(executor, work);
+      return await runReadOnly(db, work);
     } catch (error) {
       throw toRepositoryError(error, entityType, "read");
     }

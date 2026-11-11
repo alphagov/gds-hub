@@ -47,6 +47,12 @@ export interface NewAuditEntry {
   readonly changedFields: readonly string[];
   readonly actor: Actor;
   readonly changeSummary?: string | undefined;
+  /**
+   * When the change was made: the time the write took the record's lock, so
+   * entries for one record are in the order the changes were committed. The
+   * record's updated_at is set to the same value.
+   */
+  readonly changedAt: Date;
 }
 
 /**
@@ -69,6 +75,7 @@ export async function recordAuditEntry(tx: Transaction, entry: NewAuditEntry): P
     actorSubject: entry.actor.email,
     requestId: entry.actor.requestId ?? null,
     changeSummary: entry.changeSummary ?? null,
+    createdAt: entry.changedAt,
   });
 }
 
