@@ -54,3 +54,5 @@ Thumbs.db
 # Migration output (never commit)
 /migration-data
 /migration-reports
+
+/db-reference-material

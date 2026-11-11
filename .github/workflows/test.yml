@@ -45,13 +45,24 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
 
+      # Fails if src/db/schema has changed without a matching migration in
+      # drizzle/. Run `npm run db:generate` and commit the result to fix it.
+      - name: Check migrations match the schema
+        run: |
+          npm run db:generate
+          if [ -n "$(git status --porcelain -- drizzle)" ]; then
+            git status --porcelain -- drizzle
+            echo "::error::Migrations are out of date. Run npm run db:generate and commit drizzle/."
+            exit 1
+          fi
+
   unit:
     name: Unit tests (Vitest)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     services:
-      # Same image as docker-compose.yml. Unused until Phase 2 adds the schema,
-      # but ready for database-backed tests.
+      # Same image as docker-compose.yml. The integration tests create their
+      # own throwaway databases on this server.
       db:
         image: postgres:18-alpine@sha256:123b17998ccaf47e53b502e8c6a1e79afd8f579c6f3eec83c563da026f957395
         env:

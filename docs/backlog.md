@@ -10,3 +10,6 @@ Ideas raised during phases that are out of scope for the phase that found them.
 - Set cache headers for static assets, ideally with fingerprinted file names (Phase 1, for Phase 12).
 - Check how the per-request CSP nonce works with CloudFront caching of read pages (Phase 1, for Phase 12).
 - Replace the GOV.UK crown favicons and web manifest (the `headIcons` block) with Hub icons, to match the generic header (Phase 1).
+- Copy `drizzle/` into the runtime Docker image and decide how migrations run in ECS (Phase 2, for Phase 13).
+- Record a "primary" business unit for a product, team or service that sits in more than one unit, for its URL and navigation parent (Phase 2, for Phase 4 or 5).
+- Decide whether `contracts.supplier_id` should be nullable or whether Phase 5 creates a placeholder supplier, since the current YAML has no supplier data (Phase 2, for Phase 5).
