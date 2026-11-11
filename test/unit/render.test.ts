@@ -9,7 +9,7 @@ import {
   SECTIONS,
   SERVICE_NAME,
 } from "../../src/site-map.js";
-import type { SectionViewModel } from "../../src/view-models.js";
+import type { ContentsViewModel, SectionViewModel } from "../../src/view-models.js";
 
 const renderer: Renderer = createRenderer();
 const { tools, services } = SECTIONS;
@@ -110,13 +110,14 @@ describe("createRenderer", () => {
     expect(html).toContain('<script nonce="test-nonce">');
   });
 
-  it("links the GOV.UK Frontend stylesheet and the application script", async () => {
+  it("links the stylesheets and the application script", async () => {
     const html: string = await renderSection();
     const script = new RegExp(
       `<script type="module"[^>]*src="${escapeRegExp(ASSET_PATHS.applicationScript)}"`,
     );
 
     expect(html).toContain(`href="${ASSET_PATHS.stylesheet}"`);
+    expect(html).toContain(`href="${ASSET_PATHS.applicationStylesheet}"`);
     expect(html).toMatch(script);
   });
 
@@ -154,7 +155,70 @@ describe("createRenderer", () => {
     const missing = "pages/missing.njk" as "pages/home.njk";
 
     await expect(
-      renderer.renderToString(missing, { title: "x", sections: [] }, layoutFor(HOME_PATH)),
+      renderer.renderToString(missing, { title: "x", groups: [] }, layoutFor(HOME_PATH)),
     ).rejects.toThrow();
+  });
+
+  describe("the contents", () => {
+    const contents: ContentsViewModel = {
+      label: "Contents",
+      groups: [
+        {
+          name: "Cartography <maps>",
+          items: [
+            { text: "Map making", href: "/capabilities/map-making", current: true },
+            { text: "Globe spinning", href: "/capabilities/globe-spinning", current: false },
+          ],
+        },
+      ],
+    };
+
+    function renderWithContents(value: ContentsViewModel | undefined): Promise<string> {
+      return renderSection(value === undefined ? toolsPage : { ...toolsPage, contents: value });
+    }
+
+    it("is one navigation landmark with a full list and a collapsible copy", async () => {
+      const html: string = await renderWithContents(contents);
+
+      expect(html.match(/<nav class="app-contents"/g)).toHaveLength(1);
+      expect(html).toContain('<nav class="app-contents" aria-label="Contents">');
+      expect(html).toMatch(/<div class="app-contents__full">[\s\S]*Map making/);
+      expect(html).toMatch(
+        /<details class="govuk-details app-contents__collapsible">[\s\S]*?Contents[\s\S]*?Map making[\s\S]*?<\/details>/,
+      );
+    });
+
+    it("marks the current page and escapes the group names", async () => {
+      const html: string = await renderWithContents(contents);
+
+      expect(html).toContain('href="/capabilities/map-making" aria-current="page"');
+      expect(html).not.toContain('href="/capabilities/globe-spinning" aria-current');
+      expect(html).toContain("Cartography &lt;maps&gt;");
+    });
+
+    it("is inside the main element with the page content", async () => {
+      const html: string = await renderWithContents(contents);
+      const main: string = /<main\b[^>]*>([\s\S]*?)<\/main>/.exec(html)?.[0] ?? "";
+
+      expect(main).toMatch(/^<main class="govuk-main-wrapper" id="main-content"/);
+      expect(main).toContain('<nav class="app-contents" aria-label="Contents">');
+      expect(main).toContain(`<h1 class="govuk-heading-xl">${tools.name}</h1>`);
+    });
+
+    it("sits beside the page content in a quarter-width column", async () => {
+      const html: string = await renderWithContents(contents);
+
+      expect(html).toContain('class="govuk-grid-column-one-quarter-from-desktop"');
+      expect(html).toContain('class="govuk-grid-column-three-quarters-from-desktop"');
+    });
+
+    it("is left out, with the page at full width, when there are no groups", async () => {
+      for (const value of [undefined, { label: "Contents", groups: [] }]) {
+        const html: string = await renderWithContents(value);
+
+        expect(html).not.toContain("app-contents");
+        expect(html).toContain('class="govuk-grid-column-full"');
+      }
+    });
   });
 });

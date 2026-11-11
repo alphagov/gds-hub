@@ -1,0 +1,26 @@
+{% extends "layouts/catalogue.njk" %}
+{% from "govuk/components/summary-list/macro.njk" import govukSummaryList %}
+{% from "partials/link-list.njk" import linkList %}
+{% from "partials/text.njk" import paragraphs %}
+
+{% block lead %}
+  {{ paragraphs(page.description, "govuk-body-l") }}
+{% endblock %}
+
+{% block body %}
+  {% if page.website or page.rows | length %}
+    {% set websiteHtml %}
+      {% if page.website %}
+        <a class="govuk-link" href="{{ page.website.href }}">{{ page.website.text }}</a>
+      {% endif %}
+    {% endset %}
+    {{ govukSummaryList({
+      rows: [
+        { key: { text: "Website" }, value: { html: websiteHtml } } if page.website
+      ].concat(page.rows)
+    }) }}
+  {% endif %}
+
+  <h2 class="govuk-heading-m">Tools</h2>
+  {{ linkList(page.tools, "No tools from this vendor have been recorded yet.") }}
+{% endblock %}

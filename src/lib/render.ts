@@ -73,7 +73,7 @@ export function createRenderer(options: RendererOptions = {}): Renderer {
   ): Promise<void> {
     const html = await renderToString(template, page, {
       cspNonce: res.locals.cspNonce,
-      navigation: serviceNavigation(res.req.path),
+      navigation: serviceNavigation(res.req.path, page.section),
     });
     res.status(status).type("html").send(html);
   }

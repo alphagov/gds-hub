@@ -1,0 +1,39 @@
+/*
+ * The Hub's own styles. Everything else comes from GOV.UK Frontend. Class
+ * names start with "app-", as the GOV.UK Design System recommends.
+ */
+
+/*
+ * The left-hand contents (views/partials/contents-navigation.njk).
+ *
+ * 48.0625em (769px) is GOV.UK Frontend's desktop breakpoint, where the
+ * -from-desktop grid columns start. From there up the list is always shown.
+ * Below it, the list is inside a "Contents" details that opens and closes.
+ * Only one copy is ever displayed, so assistive technology finds one list.
+ */
+.app-contents__full {
+  display: none;
+}
+
+@media (min-width: 48.0625em) {
+  .app-contents__full {
+    display: block;
+  }
+
+  .app-contents__collapsible {
+    display: none;
+  }
+}
+
+.app-contents__group {
+  margin-bottom: 15px;
+}
+
+.app-contents__items {
+  margin-top: 5px;
+  padding-left: 15px;
+}
+
+.app-contents [aria-current="page"] {
+  font-weight: 700;
+}

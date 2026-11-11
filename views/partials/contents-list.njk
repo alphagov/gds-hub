@@ -1,0 +1,16 @@
+{# The list inside the left-hand contents. See partials/contents-navigation.njk. #}
+<ul class="govuk-list govuk-!-font-size-16 app-contents__list">
+  {% for group in page.contents.groups %}
+    <li class="app-contents__group">
+      <span class="govuk-!-font-weight-bold">{{ group.name }}</span>
+      <ul class="govuk-list govuk-!-font-size-16 app-contents__items">
+        {% for item in group.items %}
+          <li>
+            <a class="govuk-link govuk-link--no-visited-state" href="{{ item.href }}"
+              {%- if item.current %} aria-current="page"{% endif %}>{{ item.text }}</a>
+          </li>
+        {% endfor %}
+      </ul>
+    </li>
+  {% endfor %}
+</ul>

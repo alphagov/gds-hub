@@ -322,6 +322,9 @@ export const seedInstances: SeedInstance[] = [
 
 export type SeedCapability = Omit<Insert<typeof capabilities>, Managed> & { tools: string[] };
 
+// Weights set the navigation order, which deliberately differs from name order
+// in places. Accessibility testing has no weight, so its group comes last.
+// Legacy build servers is hidden from navigation but its page still works.
 export const seedCapabilities: SeedCapability[] = [
   {
     key: "continuous-integration",
@@ -329,13 +332,24 @@ export const seedCapabilities: SeedCapability[] = [
     groupName: "Delivery",
     description: "Build and test every change automatically.",
     comment: "We plan to retire older build servers by March 2027.",
+    weight: 10,
     tools: ["pipeline-pilot"],
+  },
+  {
+    key: "legacy-build-servers",
+    name: "Legacy build servers",
+    groupName: "Delivery",
+    description: "Older build servers that are being retired. Use continuous integration instead.",
+    weight: 11,
+    hideInNavigation: true,
+    tools: [],
   },
   {
     key: "dependency-scanning",
     name: "Dependency scanning",
     groupName: "Security",
     description: "Find vulnerable libraries before they reach production.",
+    weight: 20,
     tools: ["sentinel-scan"],
   },
   {
@@ -343,6 +357,7 @@ export const seedCapabilities: SeedCapability[] = [
     name: "Incident alerting",
     groupName: "Operations",
     description: "Tell the right people quickly when a service has a problem.",
+    weight: 30,
     tools: ["pagewatch", "chatterbox"],
   },
   {
@@ -350,6 +365,7 @@ export const seedCapabilities: SeedCapability[] = [
     name: "Team messaging",
     groupName: "Collaboration",
     description: "Talk to colleagues in channels and direct messages.",
+    weight: 40,
     tools: ["chatterbox"],
   },
   {
@@ -357,6 +373,7 @@ export const seedCapabilities: SeedCapability[] = [
     name: "Online whiteboards",
     groupName: "Collaboration",
     description: "Run workshops and map services together.",
+    weight: 41,
     tools: ["canvasly"],
   },
   {
@@ -405,6 +422,8 @@ export const seedProductTeamServices: SeedProductTeamService[] = [
     teamEmailAddress: "service-directory@example.com",
     ghOrgs: ["example-gds", "example-labs"],
     lastReviewedAt: "2026-10-15",
+    // Listed before Content Design Community in Public Services, despite the name order.
+    weight: 1,
     uses: ["pipeline-pilot-gds", "contrast-lens", "canvasly-team-boards"],
   },
   {
@@ -414,6 +433,7 @@ export const seedProductTeamServices: SeedProductTeamService[] = [
     slackChannel: "https://example.slack.com/archives/C0000000003",
     slackChannelName: "content-community",
     lastReviewedAt: "2025-12-01",
+    weight: 2,
     uses: ["canvasly-team-boards", "chatterbox-workspace"],
   },
   {

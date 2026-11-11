@@ -1,0 +1,10 @@
+{% extends "layouts/catalogue.njk" %}
+{% from "partials/capability-groups.njk" import capabilityGroups %}
+
+{% block lead %}
+  <p class="govuk-body-l">{{ page.description }}</p>
+{% endblock %}
+
+{% block body %}
+  {{ capabilityGroups(page.groups) }}
+{% endblock %}

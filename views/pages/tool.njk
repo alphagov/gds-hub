@@ -1,0 +1,47 @@
+{% extends "layouts/catalogue.njk" %}
+{% from "govuk/components/summary-list/macro.njk" import govukSummaryList %}
+{% from "partials/contract.njk" import contractCard %}
+{% from "partials/instance-access.njk" import instanceAccess %}
+{% from "partials/link-list.njk" import linkList %}
+{% from "partials/text.njk" import paragraphs %}
+
+{% block lead %}
+  {{ paragraphs(page.description, "govuk-body-l") }}
+{% endblock %}
+
+{% block body %}
+  {% if page.vendor or page.suppliers or page.capabilities | length %}
+    {% set vendorHtml %}
+      {% if page.vendor %}
+        <a class="govuk-link" href="{{ page.vendor.href }}">{{ page.vendor.text }}</a>
+      {% endif %}
+    {% endset %}
+    {% set capabilitiesHtml %}{{ linkList(page.capabilities) }}{% endset %}
+    {{ govukSummaryList({
+      rows: [
+        { key: { text: "Vendor" }, value: { html: vendorHtml } } if page.vendor,
+        { key: { text: "Suppliers" }, value: { text: page.suppliers } } if page.suppliers,
+        { key: { text: "Capabilities" }, value: { html: capabilitiesHtml } } if page.capabilities | length
+      ]
+    }) }}
+  {% endif %}
+
+  <h2 class="govuk-heading-m">How to get access</h2>
+  {% for instance in page.instances %}
+    {{ instanceAccess(instance) }}
+  {% else %}
+    <p class="govuk-body">No instances of this tool have been recorded yet.</p>
+  {% endfor %}
+
+  {% if page.productTeamServices | length %}
+    <h2 class="govuk-heading-m">Used by</h2>
+    {{ linkList(page.productTeamServices) }}
+  {% endif %}
+
+  {% if page.contracts | length %}
+    <h2 class="govuk-heading-m">Contracts</h2>
+    {% for contract in page.contracts %}
+      {{ contractCard(contract) }}
+    {% endfor %}
+  {% endif %}
+{% endblock %}

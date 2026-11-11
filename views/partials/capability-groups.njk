@@ -1,0 +1,14 @@
+{#
+  capabilityGroups(groups): each capability group (CapabilityGroupViewModel) as
+  a heading with its capabilities, for the home and capabilities pages.
+#}
+{% from "partials/link-list.njk" import linkList %}
+
+{% macro capabilityGroups(groups) %}
+  {% for group in groups %}
+    <h2 class="govuk-heading-m">{{ group.name }}</h2>
+    {{ linkList(group.capabilities) }}
+  {% else %}
+    <p class="govuk-body">No capabilities have been added yet.</p>
+  {% endfor %}
+{% endmacro %}

@@ -18,3 +18,9 @@ Ideas raised during phases that are out of scope for the phase that found them.
 - A batch `lastUpdated` for list pages, to avoid one query per row (Phase 3, for Phase 4 or 11).
 - Move the seed onto the repositories, so seed audit entries follow the same actor convention (`actor_name` = `actor_subject`) as everything else (Phase 3).
 - The database import lint rule doesn't catch dynamic `import()`. Add a check if dynamic imports are ever used in `src` (Phase 3).
+- Cache the capability groups for the left-hand contents, which every page loads, once editing can change them (Phase 4).
+- Redirect a placeholder instance's own page to its tool's page, since nothing links to it (Phase 4).
+- Consider a "skip to page content" link past the left-hand contents for keyboard users on desktop, if research shows it's needed (Phase 4).
+- Render instance text fields as markdown once `src/lib/markdown.ts` exists, so links in access instructions are clickable (Phase 4).
+- Read pages refuse slugs and keys over 160 characters (the length of `pages.slug`) before querying. Other slug and key columns have no length limit, so Phase 5 should flag any longer ones, or a check constraint should match the limit (Phase 4, for Phase 5).
+- Make the database connection and statement timeouts configurable through `Config` if the defaults (5 and 10 seconds) need tuning per environment (Phase 4, for Phase 13).

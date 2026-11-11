@@ -8,6 +8,7 @@ A short summary of each completed phase. The full handover for each phase (what 
 | P1    | GOV.UK shell and SSR        | 2026-11-09 | Code complete              | [progress-phase1.md](progress-phase1.md) |
 | P2    | Schema, migrations and seed | 2026-11-10 | Code complete, not yet run | [progress-phase2.md](progress-phase2.md) |
 | P3    | Repositories and audit      | 2026-11-11 | Code complete              | [progress-phase3.md](progress-phase3.md) |
+| P4    | Read journeys               | 2026-11-11 | Code complete              | [progress-phase4.md](progress-phase4.md) |
 
 ## Phase 0: Foundations and tooling (2026-11-04)
 
@@ -57,6 +58,18 @@ A short summary of each completed phase. The full handover for each phase (what 
 - A lint rule stops anything outside `src/repositories` and `src/db` using the database.
 - `audit_log.source_ip` was dropped (developer's decision). Nothing was deployed, so the migrations were squashed into a fresh baseline: `0000_init` (generated) plus the hand-written `0001_search` and `0002_audit_log_append_only`. Rebuild local databases with `npm run db:reset`. From now on migrations are append-only.
 - **Written without running anything in the sandbox.** The developer ran lint, typecheck and the tests on the host, and they pass. See [progress-phase3.md](progress-phase3.md#steps-to-run-on-the-host).
+
+## Phase 4: Read journeys (2026-11-11)
+
+- Read-only pages: home (capability groups), `/capabilities` and `/capabilities/:key`, `/tools` and `/tools/:slug`, `/instances/:slug`, `/vendors/:slug`, `/services` and `/services/:slug`, and `/business-units/:key`. They are built by routes, then the catalogue service, then the repositories. Presenters turn read models into typed view models, and templates only loop and test conditions.
+- The tool page shows each instance with a `govukDetails` for Getting access, Authentication, User provisioning and Escalation contact. A `govukTag` shows its migration to DSIT identity. Access instructions are 3 clicks from the home page.
+- Breadcrumbs on every page except home. The service navigation marks the page's section, including on instance, vendor and business unit pages.
+- A left-hand contents on every page except error pages: capability groups and capabilities in weight order, without hidden ones (developer's decision). It's always shown on desktop, and opens and closes in a `govukDetails` on small screens, without JavaScript.
+- New read models for capabilities, products, teams and services, business units, vendors and the services directory. Weights are respected throughout.
+- Unknown or malformed slugs show the 404 page. Playwright covers the journeys and the contents on large and small screens, and axe scans every page type.
+- CI migrates and seeds the e2e database. The seed gained weights and a hidden capability.
+- The server's database pool has a connection timeout (5 seconds) and a statement timeout (10 seconds), so a slow database gives the 500 page instead of holding requests open. Idle connection errors are logged rather than stopping the server.
+- **Written without running anything in the sandbox.** The developer ran `npm run db:reset`, `npm run format` and the checks on the host, and they pass. See [progress-phase4.md](progress-phase4.md#steps-to-run-on-the-host).
 
 ## Before Phase 2: inputs to request
 

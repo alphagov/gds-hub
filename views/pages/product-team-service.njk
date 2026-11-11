@@ -1,0 +1,55 @@
+{% extends "layouts/catalogue.njk" %}
+{% from "govuk/components/summary-list/macro.njk" import govukSummaryList %}
+{% from "partials/link-list.njk" import linkList %}
+
+{% block lead %}
+  {% if page.purpose %}
+    <p class="govuk-body-l">{{ page.purpose }}</p>
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+  {% set businessUnitsHtml %}{{ linkList(page.businessUnits) }}{% endset %}
+  {% set websiteHtml %}
+    {% if page.website %}
+      <a class="govuk-link" href="{{ page.website.href }}">{{ page.website.text }}</a>
+    {% endif %}
+  {% endset %}
+  {% set slackChannelHtml %}
+    {% if page.slackChannel %}
+      <a class="govuk-link" href="{{ page.slackChannel.href }}">{{ page.slackChannel.text }}</a>
+    {% endif %}
+  {% endset %}
+  {% set emailHtml %}
+    {% if page.email %}
+      <a class="govuk-link" href="{{ page.email.href }}">{{ page.email.text }}</a>
+    {% endif %}
+  {% endset %}
+  {% set githubHtml %}{{ linkList(page.githubOrganisations) }}{% endset %}
+  {% set rows = [
+    { key: { text: "Business units" }, value: { html: businessUnitsHtml } } if page.businessUnits | length,
+    { key: { text: "Website" }, value: { html: websiteHtml } } if page.website,
+    { key: { text: "Slack channel" }, value: { html: slackChannelHtml } } if page.slackChannel,
+    { key: { text: "Email" }, value: { html: emailHtml } } if page.email,
+    { key: { text: "GitHub organisations" }, value: { html: githubHtml } } if page.githubOrganisations | length
+  ].concat(page.rows) %}
+  {% if page.businessUnits | length or page.website or page.slackChannel or page.email
+    or page.githubOrganisations | length or page.rows | length %}
+    {{ govukSummaryList({ rows: rows }) }}
+  {% endif %}
+
+  <h2 class="govuk-heading-m">Tools it uses</h2>
+  {{ linkList(page.instances, "No tools have been recorded for this team yet.") }}
+
+  {% if page.capabilities | length %}
+    <h2 class="govuk-heading-m">Capabilities provided to it</h2>
+    <ul class="govuk-list govuk-list--spaced">
+      {% for provided in page.capabilities %}
+        <li>
+          <a class="govuk-link" href="{{ provided.capability.href }}">{{ provided.capability.text }}</a>,
+          through <a class="govuk-link" href="{{ provided.instance.href }}">{{ provided.instance.text }}</a>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endblock %}

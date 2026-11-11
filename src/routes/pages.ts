@@ -1,36 +1,36 @@
 import { Router } from "express";
 import type { Renderer } from "../lib/render.js";
-import { HOME_PATH, SECTION_LIST, SERVICE_NAME } from "../site-map.js";
-import type { HomeViewModel, SectionViewModel } from "../view-models.js";
+import { contentsNavigation } from "../presenters/contents.js";
+import { HOME_BREADCRUMB } from "../presenters/format.js";
+import type { CatalogueService } from "../services/catalogue/catalogue-service.js";
+import { SECTIONS, type SectionKey } from "../site-map.js";
+import type { SectionViewModel } from "../view-models.js";
 
-/** The home page and a placeholder page for each section. */
-export function pagesRouter(renderer: Renderer): Router {
+/** Sections that don't have content yet. The catalogue router serves the others. */
+export const PLACEHOLDER_SECTIONS: readonly SectionKey[] = ["policies", "guidance", "search"];
+
+/** A placeholder page for each section that doesn't have content yet. */
+export function pagesRouter(renderer: Renderer, catalogue: CatalogueService): Router {
   const router = Router();
 
-  const home: HomeViewModel = {
-    title: SERVICE_NAME,
-    sections: SECTION_LIST.map(({ name, path, description }) => ({
-      text: name,
-      href: path,
-      description,
-    })),
-  };
-
-  router.get(HOME_PATH, (_req, res, next) => {
-    renderer.render(res, "pages/home.njk", home).catch(next);
-  });
-
-  for (const section of SECTION_LIST) {
-    const page: SectionViewModel = {
-      title: section.name,
-      description: section.description,
-      breadcrumbs: [{ text: "Home", href: HOME_PATH }],
-      items: [],
-    };
+  for (const key of PLACEHOLDER_SECTIONS) {
+    const section = SECTIONS[key];
 
     router.get(section.path, (_req, res, next) => {
       if (!section.cacheable) res.set("Cache-Control", "no-store");
-      renderer.render(res, "pages/section.njk", page).catch(next);
+      catalogue
+        .capabilityGroups()
+        .then((groups) => {
+          const page: SectionViewModel = {
+            title: section.name,
+            description: section.description,
+            breadcrumbs: [HOME_BREADCRUMB],
+            contents: contentsNavigation(groups),
+            items: [],
+          };
+          return renderer.render(res, "pages/section.njk", page);
+        })
+        .catch(next);
     });
   }
 

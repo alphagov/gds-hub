@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { serviceNavigation, type NavigationItem } from "../../src/lib/navigation.js";
-import { HOME_PATH, SECTION_LIST, SECTIONS } from "../../src/site-map.js";
+import { HOME_PATH, SECTION_LIST, SECTIONS, type SectionKey } from "../../src/site-map.js";
 
-function itemFor(path: string, name: string): NavigationItem {
-  const item = serviceNavigation(path).find((entry) => entry.text === name);
+function itemFor(path: string, name: string, section?: SectionKey): NavigationItem {
+  const item = serviceNavigation(path, section).find((entry) => entry.text === name);
   if (!item) throw new Error(`no navigation item called ${name}`);
   return item;
 }
 
-const { tools, policies } = SECTIONS;
+const { tools, policies, services } = SECTIONS;
 
 describe("serviceNavigation", () => {
   it("lists every section in order", () => {
@@ -55,5 +55,40 @@ describe("serviceNavigation", () => {
     const item = itemFor(`${tools.path}mith`, tools.name);
 
     expect(item).toMatchObject({ current: false, active: false });
+  });
+
+  describe("with the page's section given", () => {
+    it("marks that section as active on a page whose address is outside it", () => {
+      expect(itemFor("/instances/example", tools.name, "tools")).toMatchObject({
+        current: false,
+        active: true,
+      });
+    });
+
+    it("marks no other section", () => {
+      const marked = serviceNavigation("/business-units/example", "services").filter(
+        (item) => item.current || item.active,
+      );
+
+      expect(marked.map((item) => item.text)).toEqual([services.name]);
+    });
+
+    it("still marks the section as current on its own page", () => {
+      expect(itemFor(tools.path, tools.name, "tools")).toMatchObject({
+        current: true,
+        active: false,
+      });
+    });
+
+    it("takes the given section over the one the address is in", () => {
+      expect(itemFor(`${tools.path}/example`, tools.name, "services")).toMatchObject({
+        current: false,
+        active: false,
+      });
+      expect(itemFor(`${tools.path}/example`, services.name, "services")).toMatchObject({
+        current: false,
+        active: true,
+      });
+    });
   });
 });

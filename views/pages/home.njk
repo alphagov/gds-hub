@@ -1,17 +1,14 @@
-{% extends "layouts/content.njk" %}
+{% extends "layouts/catalogue.njk" %}
+{% from "partials/capability-groups.njk" import capabilityGroups %}
+
+{% block heading %}
+  <h1 class="govuk-heading-xl">{{ page.title }}</h1>
+{% endblock %}
 
 {% block lead %}
-  <p class="govuk-body-l">Find tools, capabilities, services, policies and guidance used across GDS.</p>
+  <p class="govuk-body-l">Find the tools GDS uses, what they're for and how to get access to them.</p>
 {% endblock %}
 
 {% block body %}
-  <h2 class="govuk-heading-m">Sections</h2>
-  <ul class="govuk-list govuk-list--spaced">
-    {% for section in page.sections %}
-      <li>
-        <a class="govuk-link govuk-!-font-weight-bold" href="{{ section.href }}">{{ section.text }}</a>
-        <p class="govuk-body">{{ section.description }}</p>
-      </li>
-    {% endfor %}
-  </ul>
+  {{ capabilityGroups(page.groups) }}
 {% endblock %}
