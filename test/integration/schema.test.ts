@@ -144,7 +144,10 @@ describe("a freshly migrated database", () => {
       { name: "audit_action", values: ["create", "update", "delete", "publish", "unpublish"] },
       { name: "content_status", values: ["draft", "published"] },
       { name: "engineering_or_business_tool", values: ["engineering", "business"] },
-      { name: "migration_status", values: ["not_started", "in_progress", "complete"] },
+      {
+        name: "migration_status",
+        values: ["not_started", "in_progress", "complete", "not_applicable"],
+      },
       {
         name: "page_type",
         values: ["policy", "service_guide", "guidance", "general", "whats_new"],

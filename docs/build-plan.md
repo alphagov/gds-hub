@@ -153,14 +153,14 @@ The phase numbers are unchanged, so Phase 8 still follows Phase 6.
 
 ## Phase 5: Data migration from the current Hub
 
-**Goal:** repeatable tooling that moves all current Hub content into PostgreSQL early. It is tested separately for each source type (markdown, ERB, YAML) and **never commits migrated data**.
+**Goal:** repeatable tooling that moves all current Hub content into PostgreSQL early. It reads two inputs, the built HTML and the YAML data files, is tested separately for each kind of input (content pages, YAML data, listings, redirects) and **never commits migrated data**.
 **Sandbox boundary:** Claude Code has no access to the real Hub source or built HTML. It builds and tests against synthetic fixtures only. You run everything against real content yourself, after the session.
 **Out of scope:** changing content during migration; hosting images and downloads (listed in the report and decided separately).
 
 ### Done when
 
-- **In the session:** tests pass on fixtures for every source type, including a second run that changes nothing. `docs/migration.md` lists every manual step.
-- **Outside the sandbox:** every built page and YAML file is accounted for; the real-data check passes per source type; the manual-review list is agreed with content owners; the Phase 4 pages run on migrated data.
+- **In the session:** tests pass on fixtures for every kind of input, including a second run that changes nothing. `docs/migration.md` lists every manual step.
+- **Outside the sandbox:** every built page and YAML file is accounted for; the real-data check passes for each kind of input; the manual-review list is agreed with content owners; the Phase 4 pages run on migrated data.
 - **Both:** `check:no-migration-data` passes.
 
 **Handover:** script options, required settings, mapping files, manual-review process, cut-over checklist.
@@ -176,7 +176,7 @@ The phase numbers are unchanged, so Phase 8 still follows Phase 6.
 
 - Seeded policies and guides render accessibly.
 - The XSS tests pass.
-- A migrated page from each source type renders, and old URLs redirect.
+- A migrated page of each page type renders, and old URLs redirect.
 
 **Handover:** markdown helper API and page-type routes.
 

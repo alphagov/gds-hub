@@ -152,6 +152,7 @@ const MIGRATION_STATUS_TAGS: Readonly<Record<MigrationStatus, TagViewModel>> = {
   // The default tag colour (blue).
   in_progress: { text: "In progress" },
   complete: { text: "Complete", classes: "govuk-tag--green" },
+  not_applicable: { text: "Not applicable", classes: "govuk-tag--grey" },
 };
 
 /** The govukTag for where an instance is in the move to DSIT identity. */

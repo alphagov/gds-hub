@@ -20,16 +20,22 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file-if-exists=.env --import tsx src/db/scripts/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env --import tsx src/db/scripts/seed.ts",
-    "db:reset": "node --env-file-if-exists=.env --import tsx src/db/scripts/reset.ts"
+    "db:reset": "node --env-file-if-exists=.env --import tsx src/db/scripts/reset.ts",
+    "migrate:inventory": "node --env-file-if-exists=.env --import tsx src/migration/scripts/inventory.ts",
+    "check:no-migration-data": "node --import tsx src/migration/scripts/check-no-migration-data.ts",
+    "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {
+    "cheerio": "^1.2.0",
     "compression": "^1.8.2",
     "drizzle-orm": "^0.45.4",
     "express": "^5.3.0",
     "govuk-frontend": "^6.6.0",
     "helmet": "^8.3.0",
+    "js-yaml": "^5.5.0",
     "nunjucks": "^3.2.4",
     "pg": "^8.23.1",
+    "turndown": "^7.2.5",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -40,6 +46,7 @@
     "@types/node": "^24.19.2",
     "@types/nunjucks": "^3.2.6",
     "@types/pg": "^8.23.1",
+    "@types/turndown": "^5.0.6",
     "drizzle-kit": "^0.31.11",
     "eslint": "^10.14.0",
     "prettier": "^3.9.10",

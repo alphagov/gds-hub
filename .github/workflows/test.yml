@@ -45,6 +45,10 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
 
+      # Fails if any file looks like migrated or source data from the current
+      # Hub. The pre-commit hook runs the same check locally.
+      - run: npm run check:no-migration-data
+
       # Fails if src/db/schema has changed without a matching migration in
       # drizzle/. Run `npm run db:generate` and commit the result to fix it.
       - name: Check migrations match the schema

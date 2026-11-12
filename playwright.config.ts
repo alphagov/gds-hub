@@ -1,6 +1,21 @@
+import { existsSync, readFileSync } from "node:fs";
+import { parseEnv } from "node:util";
 import { defineConfig, devices } from "@playwright/test";
 
 const PORT = Number(process.env.E2E_PORT ?? 3100);
+
+// The e2e server's database, found the same way as vitest.config.ts and the
+// db:* scripts: the environment first (as in CI), then .env, so a local
+// database on a different port (DB_HOST_PORT) is the one the tests use.
+function databaseUrl(): string {
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+  if (existsSync(".env")) {
+    const fromFile = parseEnv(readFileSync(".env", "utf8")).DATABASE_URL;
+    if (fromFile) return fromFile;
+  }
+  return "postgres://gdshub:gdshub@localhost:5432/gdshub";
+}
+
 const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
@@ -31,7 +46,7 @@ export default defineConfig({
       PORT: String(PORT),
       LOG_LEVEL: "warn",
       APP_VERSION: "e2e",
-      DATABASE_URL: "postgres://gdshub:gdshub@localhost:5432/gdshub",
+      DATABASE_URL: databaseUrl(),
     },
   },
 });

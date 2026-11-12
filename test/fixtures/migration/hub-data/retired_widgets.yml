@@ -1,0 +1,3 @@
+# SYNTHETIC FIXTURE: an invented data file the migration doesn't know about.
+old-widget:
+  name: Old widget

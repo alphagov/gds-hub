@@ -1,0 +1,13 @@
+# SYNTHETIC FIXTURE: invented ownership levels for the migration tests. Not real Hub data.
+undocumented:
+  name: No central ownership
+  definition: Nobody has written down who looks after the example tool.
+  description: |
+    Example description of having no owner.
+  target_state: |
+    Example target of having an owner.
+  weight: 1
+team-owned:
+  name: Team owned
+  definition: One example team looks after the tool.
+  weight: 2

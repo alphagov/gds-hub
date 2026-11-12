@@ -3,11 +3,15 @@ import { pgEnum } from "drizzle-orm/pg-core";
 // Adding a value to a Postgres enum is backward compatible (ALTER TYPE ... ADD
 // VALUE). Removing or renaming one is not, so treat these lists as append-only.
 
-/** Where an instance is in the move to DSIT identity. */
+/**
+ * Where an instance is in the move to DSIT identity. not_applicable is for
+ * tools that won't move, as recorded on the current Hub.
+ */
 export const migrationStatus = pgEnum("migration_status", [
   "not_started",
   "in_progress",
   "complete",
+  "not_applicable",
 ]);
 
 export const engineeringOrBusinessTool = pgEnum("engineering_or_business_tool", [

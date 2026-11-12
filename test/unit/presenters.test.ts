@@ -187,6 +187,10 @@ describe("labels", () => {
       text: "Complete",
       classes: "govuk-tag--green",
     });
+    expect(migrationStatusTag("not_applicable")).toEqual({
+      text: "Not applicable",
+      classes: "govuk-tag--grey",
+    });
   });
 
   it("only makes summary rows for values that have text", () => {

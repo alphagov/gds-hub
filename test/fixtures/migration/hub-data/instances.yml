@@ -1,0 +1,17 @@
+# SYNTHETIC FIXTURE: invented instances for the migration tests. Not real Hub data.
+kettle-board-main:
+  tool: kettle-board
+  name: Kettle Board main workspace
+  url: https://main.kettle.example.com
+  getting_access: |
+    Request access through the example service desk.
+  authentication: Sign in with the example identity provider
+  last_updated: 02/07/2026
+  account_identifier: 123456
+  used_by: Example team
+lanternly-team-space:
+  tool: lanternly
+  name: Lanternly team space
+  url: not a web address
+  user_provisioning: Accounts are created automatically
+  weight: 2

@@ -1,0 +1,11 @@
+# SYNTHETIC FIXTURE: invented business units for the migration tests. Not real Hub data.
+skyward-directorate:
+  name: Skyward Directorate
+  description: |
+    An example directorate.
+  lead: Example Person
+  level: directorate
+  weight: 20
+  operates:
+    - paper-planes
+    - harbour-desk

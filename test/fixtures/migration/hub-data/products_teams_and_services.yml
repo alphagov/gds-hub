@@ -1,0 +1,20 @@
+# SYNTHETIC FIXTURE: invented teams for the migration tests. Not real Hub data.
+paper-planes:
+  name: Paper Planes Team
+  purpose: builds example paper planes
+  slack_channel: https://example.slack.com/archives/C0000000001
+  slack_channel_name: paper-planes
+  team_email_address: paper-planes@example.com
+  uses:
+    - kettle-board
+    - lanternly
+  gh_orgs:
+    - example-org
+    - not a valid org
+  escalation_contact: Call the example on-call rota.
+  last_updated: 15/09/2026
+harbour-desk:
+  name: Harbour Desk
+  purpose: answers example questions
+  uses: []
+  gh_orgs: []

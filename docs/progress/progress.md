@@ -9,6 +9,7 @@ A short summary of each completed phase. The full handover for each phase (what 
 | P2    | Schema, migrations and seed | 2026-11-10 | Code complete, not yet run | [progress-phase2.md](progress-phase2.md) |
 | P3    | Repositories and audit      | 2026-11-11 | Code complete              | [progress-phase3.md](progress-phase3.md) |
 | P4    | Read journeys               | 2026-11-11 | Code complete              | [progress-phase4.md](progress-phase4.md) |
+| P5a   | Migration: inventory        | 2026-11-11 | Code complete              | [progress-phase5.md](progress-phase5.md) |
 
 ## Phase 0: Foundations and tooling (2026-11-04)
 
@@ -70,6 +71,18 @@ A short summary of each completed phase. The full handover for each phase (what 
 - CI migrates and seeds the e2e database. The seed gained weights and a hidden capability.
 - The server's database pool has a connection timeout (5 seconds) and a statement timeout (10 seconds), so a slow database gives the 500 page instead of holding requests open. Idle connection errors are logged rather than stopping the server.
 - **Written without running anything in the sandbox.** The developer ran `npm run db:reset`, `npm run format` and the checks on the host, and they pass. See [progress-phase4.md](progress-phase4.md#steps-to-run-on-the-host).
+
+## Phase 5a: Migration inventory and extractor (2026-11-11)
+
+- Tooling to migrate the current Hub from two plain folders outside the repo: the built HTML (`HUB_BUILD_DIR`) and the YAML data files (`HUB_DATA_DIR`). The old Hub's page sources aren't used, so the same tooling can later run against the built site in S3.
+- `npm run migrate:inventory` accounts for every built page and data file, and reports pass or fail for each kind of input (`content`, `yaml`, `listing`, `redirect`, `unknown`).
+  - Pages rendered from YAML are matched to their records and only become redirects, so nothing is migrated twice.
+  - Hand-written pages are converted to markdown from the content area only, with links and image paths rewritten. Anything markdown can't show is flagged for manual review.
+- YAML records are validated with shared Zod schemas, and every problem is collected. Each tool gets a placeholder instance, and a contract if it has commercial fields.
+- Reports and logs hold paths, keys, counts and warnings only, never content.
+- `npm run check:no-migration-data` runs in CI and in a pre-commit hook (`npm run hooks:install`).
+- Tested on synthetic fixtures in the repo. The developer ran the inventory against the real Hub on the host, and every kind of input passes with no validation issues. 11 items need manual review.
+- Part b adds the loader, redirects, verify and `docs/migration.md`, which lists the manual steps. See [progress-phase5.md](progress-phase5.md).
 
 ## Before Phase 2: inputs to request
 
