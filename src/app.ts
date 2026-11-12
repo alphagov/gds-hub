@@ -6,6 +6,7 @@ import type { Logger } from "./lib/logger.js";
 import { createRenderer } from "./lib/render.js";
 import { cspNonce } from "./middleware/csp-nonce.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
+import { redirectOnNotFound } from "./middleware/redirect-on-not-found.js";
 import { requestId } from "./middleware/request-id.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { assetsRouter } from "./routes/assets.js";
@@ -14,16 +15,19 @@ import { healthRouter } from "./routes/health.js";
 import { pagesRouter } from "./routes/pages.js";
 import { testOnlyRouter } from "./routes/test-only.js";
 import type { CatalogueService } from "./services/catalogue/catalogue-service.js";
+import type { RedirectService } from "./services/redirects/redirect-service.js";
 
 export interface AppDependencies {
   config: Config;
   logger: Logger;
   /** What the read pages show. server.ts builds it from the repositories; tests pass a fake. */
   catalogue: CatalogueService;
+  /** Where old addresses now go. server.ts builds it from the repositories; tests pass a fake. */
+  redirects: RedirectService;
 }
 
 /** Builds the Express app. Does not start listening. */
-export function createApp({ config, logger, catalogue }: AppDependencies): Express {
+export function createApp({ config, logger, catalogue, redirects }: AppDependencies): Express {
   const app = express();
   const renderer = createRenderer({ noCache: config.nodeEnv === "development" });
 
@@ -54,6 +58,7 @@ export function createApp({ config, logger, catalogue }: AppDependencies): Expre
   }
 
   app.use(notFoundHandler());
+  app.use(redirectOnNotFound(redirects));
   app.use(errorHandler(renderer));
 
   return app;

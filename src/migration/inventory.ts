@@ -1,5 +1,3 @@
-import { readFile, readdir } from "node:fs/promises";
-import path from "node:path";
 import type { MigrationOptions } from "./config.js";
 import { extractContent, hasContentArea, redirectTarget } from "./extractor.js";
 import {
@@ -17,6 +15,7 @@ import {
   type TargetEntity,
   type ValidationIssue,
 } from "./records.js";
+import type { MigrationSources } from "./storage/types.js";
 import { validateRecords } from "./validate.js";
 import { recordsFromYaml, type DataFile } from "./yaml-records.js";
 
@@ -69,20 +68,11 @@ const ASSET_FILE =
 /** Redirect pages can point at other redirect pages. Give up after this many steps. */
 const MAX_REDIRECT_STEPS = 10;
 
-/** Every file under a folder, as sorted paths with "/" separators. Symbolic links aren't followed. */
-async function listFiles(root: string): Promise<string[]> {
-  const found: string[] = [];
-  const walk = async (dir: string, prefix: string): Promise<void> => {
-    const entries = await readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const relative = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
-      if (entry.isDirectory()) await walk(path.join(dir, entry.name), relative);
-      else if (entry.isFile()) found.push(relative);
-    }
-  };
-  await walk(root, "");
-  return found.sort();
-}
+/** The settings that change how pages are read and converted. */
+export type PlanSettings = Pick<
+  MigrationOptions,
+  "contentSelector" | "stripSelectors" | "siteOrigins" | "assetBasePath"
+>;
 
 interface PendingRedirect {
   readonly builtPath: string;
@@ -90,16 +80,24 @@ interface PendingRedirect {
   readonly newPath: string;
 }
 
-export async function buildMigrationPlan(options: MigrationOptions): Promise<MigrationPlan> {
+/**
+ * Builds the plan from the two inputs, local folders or S3 prefixes alike.
+ * Only built pages and data files are read; images and downloads are only
+ * listed.
+ */
+export async function buildMigrationPlan(
+  sources: MigrationSources,
+  options: PlanSettings,
+): Promise<MigrationPlan> {
   const items: InventoryItem[] = [];
 
   // The YAML data files.
-  const dataPaths = await listFiles(options.dataDir);
+  const dataPaths = await sources.data.list();
   const yamlPaths = dataPaths.filter((file) => YAML_FILE.test(file));
   const dataFiles: DataFile[] = await Promise.all(
     yamlPaths.map(async (sourcePath) => ({
       sourcePath,
-      text: await readFile(path.join(options.dataDir, sourcePath), "utf8"),
+      text: await sources.data.readText(sourcePath),
     })),
   );
   const yaml = recordsFromYaml(dataFiles);
@@ -140,7 +138,7 @@ export async function buildMigrationPlan(options: MigrationOptions): Promise<Mig
 
   // The built pages: first work out what each one is and where it goes.
   const index = buildRecordIndex(yaml.records);
-  const builtFiles = await listFiles(options.buildDir);
+  const builtFiles = await sources.build.list();
   const builtFileSet = new Set(builtFiles);
   const pathMap = new Map<string, string>();
   const redirects: PendingRedirect[] = [];
@@ -214,7 +212,7 @@ export async function buildMigrationPlan(options: MigrationOptions): Promise<Mig
       continue;
     }
 
-    const html = await readFile(path.join(options.buildDir, builtPath), "utf8");
+    const html = await sources.build.readText(builtPath);
     if (hasContentArea(html, options.contentSelector)) {
       const { newPath } = contentPageTarget(builtPath);
       pathMap.set(oldPath, newPath);

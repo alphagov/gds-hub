@@ -12,7 +12,7 @@ import {
   type Section,
 } from "../../src/site-map.js";
 import { fakeCatalogue } from "./catalogue-fixtures.js";
-import { startApp, testConfig, type RunningApp } from "./helpers.js";
+import { noRedirects, startApp, testConfig, type RunningApp } from "./helpers.js";
 
 function headingOf(html: string): string | undefined {
   return /<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)?.[1]?.trim();
@@ -23,7 +23,12 @@ describe("app", () => {
 
   beforeAll(async () => {
     running = await startApp(
-      createApp({ config: testConfig, logger: silentLogger, catalogue: fakeCatalogue() }),
+      createApp({
+        config: testConfig,
+        logger: silentLogger,
+        catalogue: fakeCatalogue(),
+        redirects: noRedirects,
+      }),
     );
   });
 
@@ -157,7 +162,12 @@ describe("app", () => {
       async (nodeEnv: Config["nodeEnv"]) => {
         const config: Config = { ...testConfig, nodeEnv };
         const other: RunningApp = await startApp(
-          createApp({ config, logger: silentLogger, catalogue: fakeCatalogue() }),
+          createApp({
+            config,
+            logger: silentLogger,
+            catalogue: fakeCatalogue(),
+            redirects: noRedirects,
+          }),
         );
         try {
           expect((await fetch(`${other.baseUrl}${TEST_ROUTES.forbidden}`)).status).toBe(404);

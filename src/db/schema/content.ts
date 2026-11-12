@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import { check, date, index, jsonb, pgTable, text, timestamp, varchar } from "drizzle-orm/pg-core";
-import { fk, id, kebabCaseCheck, timestamps } from "./columns.js";
+import { fk, id, kebabCaseCheck, sitePathCheck, timestamps } from "./columns.js";
 import { auditAction, contentStatus, pageType } from "./enums.js";
 import { productTeamServices } from "./organisation.js";
 
@@ -34,6 +34,25 @@ export const pages = pgTable(
     kebabCaseCheck("pages_slug_format", t.slug),
     index("pages_product_team_service_id_idx").on(t.productTeamServiceId),
     index("pages_page_type_idx").on(t.pageType),
+  ],
+);
+
+/**
+ * Where an old address now goes: the current Hub's pages, and anything moved
+ * later. Read pages never redirect: a redirect is only looked up when nothing
+ * else is at the address. Both paths must be on this site.
+ */
+export const redirects = pgTable(
+  "redirects",
+  {
+    id: id(),
+    oldPath: text("old_path").notNull().unique("redirects_old_path_unique"),
+    newPath: text("new_path").notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    sitePathCheck("redirects_old_path_format", t.oldPath),
+    sitePathCheck("redirects_new_path_format", t.newPath),
   ],
 );
 

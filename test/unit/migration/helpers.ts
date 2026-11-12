@@ -5,6 +5,7 @@ import {
   loadMigrationOptions,
   type MigrationOptions,
 } from "../../../src/migration/config.js";
+import { localSource, type MigrationSources } from "../../../src/migration/storage/index.js";
 
 /** The synthetic stand-in for HUB_DATA_DIR. */
 export const FIXTURE_DATA_DIR = path.join(FIXTURES_DIR, "hub-data");
@@ -26,6 +27,11 @@ export function fixtureOptions(): MigrationOptions {
     },
     {},
   );
+}
+
+/** The fixture folders, read from the local disk. */
+export function fixtureSources(): MigrationSources {
+  return { data: localSource(FIXTURE_DATA_DIR), build: localSource(FIXTURE_BUILD_DIR) };
 }
 
 /** Wraps content in a minimal stand-in for the current Hub's shared layout. */

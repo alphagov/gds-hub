@@ -1,5 +1,3 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import type { AssetReference, InventoryItem, ItemKind, MigrationPlan } from "./inventory.js";
 import {
   TARGET_ENTITIES,
@@ -7,6 +5,7 @@ import {
   type TargetEntity,
   type ValidationIssue,
 } from "./records.js";
+import type { ReportTarget } from "./storage/types.js";
 
 /**
  * Reports for the developer and content owners. They hold paths, keys,
@@ -30,7 +29,8 @@ const GROUP_OF_KIND: Readonly<Record<ItemKind, SummaryGroup>> = {
   unknown_page: "unknown",
 };
 
-function groupOfEntity(entity: TargetEntity | undefined): SummaryGroup {
+/** The kind of input a record or issue belongs to. */
+export function groupOfEntity(entity: TargetEntity | undefined): SummaryGroup {
   if (entity === "page") return "content";
   if (entity === "redirect") return "redirect";
   return "yaml";
@@ -114,14 +114,17 @@ export function createInventoryReport(plan: MigrationPlan, now: Date): Inventory
   };
 }
 
-/** Writes a report as JSON in the report folder, never replacing an earlier one. Returns its path. */
+/**
+ * Writes a report as JSON to the report folder or S3 prefix, never replacing
+ * an earlier one. Returns where it went.
+ */
 export async function writeReport(
-  dir: string,
+  target: ReportTarget,
   report: { readonly report: string; readonly createdAt: string },
 ): Promise<string> {
-  await mkdir(dir, { recursive: true });
   const stamp = report.createdAt.replace(/[:.]/g, "-");
-  const file = path.join(dir, `${report.report}-${stamp}.json`);
-  await writeFile(file, `${JSON.stringify(report, null, 2)}\n`, { flag: "wx" });
-  return file;
+  return await target.write(
+    `${report.report}-${stamp}.json`,
+    `${JSON.stringify(report, null, 2)}\n`,
+  );
 }

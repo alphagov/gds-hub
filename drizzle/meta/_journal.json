@@ -29,6 +29,13 @@
       "when": 1794475529473,
       "tag": "0003_normal_mad_thinker",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794494549069,
+      "tag": "0004_outstanding_ultragirl",
+      "breakpoints": true
     }
   ]
 }

@@ -69,7 +69,13 @@ export const isoDateSchema = z
 
 export const githubNameSchema = z.string().regex(GITHUB_NAME, "must be a GitHub organisation name");
 
-export const sitePathSchema = z.string().regex(SITE_PATH, "must be a path on this site");
+/** The longest path a redirect can hold, as the database checks. */
+export const MAX_SITE_PATH_LENGTH = 2048;
+
+export const sitePathSchema = z
+  .string()
+  .max(MAX_SITE_PATH_LENGTH, `must be at most ${MAX_SITE_PATH_LENGTH} characters`)
+  .regex(SITE_PATH, "must be a path on this site");
 
 const name = z.string().trim().min(1, "must not be blank");
 const optionalText = z.string().nullable();

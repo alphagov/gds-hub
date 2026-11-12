@@ -241,6 +241,26 @@ describe("db:reset", () => {
     expect(await db().$count(tools)).toBe(1);
   });
 
+  it("is allowed on a seeded database migrated before a newer table was added", async () => {
+    // Stands in for a database migrated before the redirects table existed.
+    await migrateAndSeed();
+    await db().execute(sql`DROP TABLE redirects`);
+
+    await expect(dropAppObjects(db())).resolves.toBeUndefined();
+    expect(await objectsLeft()).toEqual([]);
+  });
+
+  it("is still refused on an older database with data the seed didn't create", async () => {
+    await runMigrations(db());
+    await db().execute(sql`DROP TABLE redirects`);
+    await db().insert(tools).values({ key: "real-tool", slug: "real-tool", name: "Real tool" });
+
+    await expect(dropAppObjects(db())).rejects.toThrow(
+      /data that wasn't created by the seed \(in tools\)/,
+    );
+    expect(await db().$count(tools)).toBe(1);
+  });
+
   it("is refused when the database has no audit_log table", async () => {
     await runMigrations(db());
     await db().execute(sql`DROP TABLE audit_log`);

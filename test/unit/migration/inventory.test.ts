@@ -6,7 +6,7 @@ import {
 } from "../../../src/migration/inventory.js";
 import type { MigrationRecord } from "../../../src/migration/records.js";
 import { createInventoryReport } from "../../../src/migration/report.js";
-import { fixtureOptions } from "./helpers.js";
+import { fixtureOptions, fixtureSources } from "./helpers.js";
 
 // The build fixture holds 34 files: 32 pages, an image and a stylesheet.
 // The data fixture holds 7 YAML files.
@@ -16,7 +16,7 @@ const DATA_FILES = 7;
 let plan: MigrationPlan;
 
 beforeAll(async () => {
-  plan = await buildMigrationPlan(fixtureOptions());
+  plan = await buildMigrationPlan(fixtureSources(), fixtureOptions());
 });
 
 function item(path: string): InventoryItem {

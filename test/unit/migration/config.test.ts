@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_CONTENT_SELECTOR,
   DEFAULT_REPORT_DIR,
@@ -37,8 +37,14 @@ describe("migration options", () => {
       {},
       { HUB_DATA_DIR: outsideData, HUB_BUILD_DIR: outsideBuild },
     );
-    expect(options.dataDir).toContain(path.basename(outsideData));
-    expect(options.buildDir).toContain(path.basename(outsideBuild));
+    expect(options.data).toEqual({
+      kind: "local",
+      dir: expect.stringContaining(path.basename(outsideData)),
+    });
+    expect(options.build).toEqual({
+      kind: "local",
+      dir: expect.stringContaining(path.basename(outsideBuild)),
+    });
   });
 
   it("prefers command-line options to the environment", () => {
@@ -46,8 +52,8 @@ describe("migration options", () => {
       { data: FIXTURE_DATA_DIR, build: FIXTURE_BUILD_DIR },
       { HUB_DATA_DIR: outsideData, HUB_BUILD_DIR: outsideBuild },
     );
-    expect(options.dataDir).toBe(FIXTURE_DATA_DIR);
-    expect(options.buildDir).toBe(FIXTURE_BUILD_DIR);
+    expect(options.data).toEqual({ kind: "local", dir: FIXTURE_DATA_DIR });
+    expect(options.build).toEqual({ kind: "local", dir: FIXTURE_BUILD_DIR });
   });
 
   it("fails fast, naming both settings, when the directories are unset", () => {
@@ -99,8 +105,8 @@ describe("migration options", () => {
 
   it("writes reports to the git-ignored migration-reports folder by default", () => {
     const options = loadMigrationOptions({ data: outsideData, build: outsideBuild }, {});
-    expect(options.reportDir).toBe(DEFAULT_REPORT_DIR);
-    expect(path.relative(REPO_ROOT, options.reportDir)).toBe("migration-reports");
+    expect(options.reports).toEqual({ kind: "local", dir: DEFAULT_REPORT_DIR });
+    expect(path.relative(REPO_ROOT, DEFAULT_REPORT_DIR)).toBe("migration-reports");
   });
 
   it("uses the default content selector and strip-list unless told otherwise", () => {
@@ -152,5 +158,176 @@ describe("migration options", () => {
       assetBasePath: "//cdn.example.com",
     });
     expect(issues[0]).toContain("MIGRATION_ASSET_BASE_PATH");
+  });
+});
+
+describe("migration options for S3", () => {
+  it("reads s3:// addresses for the data and build, with each prefix ending in a slash", () => {
+    const options = loadMigrationOptions(
+      {
+        data: "s3://example-hub-migration/hub-data",
+        build: "s3://example-hub-migration/hub-build/",
+      },
+      {},
+    );
+    expect(options.data).toEqual({
+      kind: "s3",
+      bucket: "example-hub-migration",
+      prefix: "hub-data/",
+    });
+    expect(options.build).toEqual({
+      kind: "s3",
+      bucket: "example-hub-migration",
+      prefix: "hub-build/",
+    });
+  });
+
+  it("reads s3:// addresses from the environment too", () => {
+    const options = loadMigrationOptions(
+      {},
+      {
+        HUB_DATA_DIR: "s3://example-hub-migration/frozen/hub-data/",
+        HUB_BUILD_DIR: "s3://example-hub-migration/frozen/hub-build/",
+      },
+    );
+    expect(options.data).toEqual({
+      kind: "s3",
+      bucket: "example-hub-migration",
+      prefix: "frozen/hub-data/",
+    });
+  });
+
+  it("allows a whole bucket, with an empty prefix", () => {
+    const options = loadMigrationOptions(
+      { data: "s3://example-hub-data", build: "s3://example-hub-build/" },
+      {},
+    );
+    expect(options.data).toEqual({ kind: "s3", bucket: "example-hub-data", prefix: "" });
+    expect(options.build).toEqual({ kind: "s3", bucket: "example-hub-build", prefix: "" });
+  });
+
+  it("can mix a local folder and an S3 address", () => {
+    const options = loadMigrationOptions(
+      { data: outsideData, build: "s3://example-hub-migration/hub-build/" },
+      {},
+    );
+    expect(options.data.kind).toBe("local");
+    expect(options.build.kind).toBe("s3");
+  });
+
+  it.each([
+    ["no bucket", "s3://"],
+    ["a bucket name with capital letters", "s3://Example-Bucket/hub-data/"],
+    ["a bucket name that is too short", "s3://ab/hub-data/"],
+    ["a bucket name with an underscore", "s3://example_bucket/hub-data/"],
+    ["a query string", "s3://example-bucket/hub-data/?versionId=1"],
+    ["a fragment", "s3://example-bucket/hub-data/#top"],
+    ["a parent folder step", "s3://example-bucket/hub-data/../other/"],
+    ["an empty folder name", "s3://example-bucket/hub-data//build/"],
+    ["a backslash", "s3://example-bucket/hub\\data/"],
+    ["credentials", "s3://key:secret@example-bucket/hub-data/"],
+  ])("refuses an S3 address with %s", (_case, address) => {
+    const issues = issuesFrom({ data: address, build: outsideBuild });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain("HUB_DATA_DIR");
+    expect(issues[0]).toContain("s3://");
+  });
+
+  it("never repeats a refused address in its message", () => {
+    const issues = issuesFrom({
+      data: "s3://key:secret@example-bucket/hub-data/",
+      build: outsideBuild,
+    });
+    expect(issues.join("\n")).not.toContain("secret");
+  });
+
+  it("refuses any other kind of address", () => {
+    const issues = issuesFrom({ data: "https://example.com/hub-data/", build: outsideBuild });
+    expect(issues[0]).toContain("HUB_DATA_DIR");
+  });
+
+  it("writes reports to an s3:// address when given one", () => {
+    const options = loadMigrationOptions(
+      {
+        data: "s3://example-hub-migration/hub-data/",
+        build: "s3://example-hub-migration/hub-build/",
+        reportDir: "s3://example-hub-migration/reports",
+      },
+      {},
+    );
+    expect(options.reports).toEqual({
+      kind: "s3",
+      bucket: "example-hub-migration",
+      prefix: "reports/",
+    });
+  });
+
+  it("refuses a report address that isn't valid", () => {
+    const issues = issuesFrom({
+      data: outsideData,
+      build: outsideBuild,
+      reportDir: "s3://Example/reports/",
+    });
+    expect(issues[0]).toContain("MIGRATION_REPORT_DIR");
+  });
+});
+
+describe("the database host option", () => {
+  it("is unset unless given", () => {
+    const options = loadMigrationOptions({ data: outsideData, build: outsideBuild }, {});
+    expect(options.databaseHost).toBeUndefined();
+  });
+
+  it("is read from the command line, then the environment", () => {
+    expect(
+      loadMigrationOptions(
+        { data: outsideData, build: outsideBuild, databaseHost: "hub.cluster.example.com" },
+        { MIGRATION_DATABASE_HOST: "other.example.com" },
+      ).databaseHost,
+    ).toBe("hub.cluster.example.com");
+    expect(
+      loadMigrationOptions(
+        { data: outsideData, build: outsideBuild },
+        { MIGRATION_DATABASE_HOST: "other.example.com" },
+      ).databaseHost,
+    ).toBe("other.example.com");
+  });
+
+  it("refuses something that isn't a host name", () => {
+    const issues = issuesFrom({
+      data: outsideData,
+      build: outsideBuild,
+      databaseHost: "db.example.com/other",
+    });
+    expect(issues[0]).toContain("MIGRATION_DATABASE_HOST");
+  });
+});
+
+describe("local folders given with ~", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("are found in the home folder, even from .env where no shell expands them", () => {
+    vi.stubEnv("HOME", outside);
+    const options = loadMigrationOptions(
+      {},
+      {
+        HUB_DATA_DIR: `~/${path.basename(outsideData)}`,
+        HUB_BUILD_DIR: `~/${path.basename(outsideBuild)}`,
+      },
+    );
+    expect(options.data).toEqual({
+      kind: "local",
+      dir: expect.stringContaining(path.basename(outsideData)),
+    });
+    expect(options.build.kind).toBe("local");
+  });
+
+  it("say which folder couldn't be found", () => {
+    vi.stubEnv("HOME", outside);
+    const issues = issuesFrom({ data: "~/no-such-folder", build: outsideBuild });
+    expect(issues).toHaveLength(1);
+    expect(issues[0]).toContain(path.join(outside, "no-such-folder"));
   });
 });

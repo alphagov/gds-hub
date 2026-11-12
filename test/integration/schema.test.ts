@@ -16,6 +16,7 @@ import {
   pages,
   productTeamServiceInstances,
   productTeamServices,
+  redirects,
   searchIndex,
   supplierTools,
   suppliers,
@@ -52,6 +53,7 @@ const DATA_TABLES: readonly (readonly [AuditedTableName, PgTable])[] = [
   ["pages", pages],
   ["product_team_service_instances", productTeamServiceInstances],
   ["product_team_services", productTeamServices],
+  ["redirects", redirects],
   ["supplier_tools", supplierTools],
   ["suppliers", suppliers],
   ["tools", tools],
@@ -280,6 +282,14 @@ describe("foreign keys", () => {
     expect(code).toBeUndefined();
   });
 
+  it("allow a contract with no supplier, as the current Hub's data has none", async () => {
+    const tool = await toolId("ledgerly");
+    const code = await postgresErrorCode(() =>
+      db.insert(contracts).values({ toolId: tool, supplierId: null }),
+    );
+    expect(code).toBeUndefined();
+  });
+
   it("reject a contract whose supplier does not exist", async () => {
     const tool = await toolId("ledgerly");
     const code = await postgresErrorCode(() =>
@@ -414,6 +424,39 @@ describe("check constraints", () => {
       db.insert(pages).values({ ...page, slug: "duplicate-slug" }),
     );
     expect(code).toBe(UNIQUE_VIOLATION);
+  });
+
+  it("reject two redirects from the same old address", async () => {
+    await db.insert(redirects).values({ oldPath: "/duplicate-old.html", newPath: "/tools" });
+    const code = await postgresErrorCode(() =>
+      db.insert(redirects).values({ oldPath: "/duplicate-old.html", newPath: "/capabilities" }),
+    );
+    expect(code).toBe(UNIQUE_VIOLATION);
+  });
+
+  it("reject redirects that aren't between paths on this site", async () => {
+    const badPaths = [
+      { oldPath: "/fine.html", newPath: "//elsewhere.example.com/" },
+      { oldPath: "/fine.html", newPath: "https://elsewhere.example.com/" },
+      { oldPath: "/fine.html", newPath: "/\\elsewhere.example.com" },
+      { oldPath: "/fine.html", newPath: "javascript:alert(1)" },
+      { oldPath: "/fine.html", newPath: "/with space" },
+      { oldPath: "/fine.html", newPath: "" },
+      { oldPath: "no-leading-slash.html", newPath: "/tools" },
+      { oldPath: "//elsewhere.example.com/", newPath: "/tools" },
+    ];
+    const codes: (string | undefined)[] = [];
+    for (const values of badPaths) {
+      codes.push(await postgresErrorCode(() => db.insert(redirects).values(values)));
+    }
+    expect(codes).toEqual(Array<string>(badPaths.length).fill(CHECK_VIOLATION));
+  });
+
+  it("allow a redirect between paths on this site", async () => {
+    const code = await postgresErrorCode(() =>
+      db.insert(redirects).values({ oldPath: "/tools/caf%C3%A9/", newPath: "/tools/cafe#access" }),
+    );
+    expect(code).toBeUndefined();
   });
 
   it("reject audit entries whose values do not match the action", async () => {

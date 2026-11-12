@@ -22,10 +22,13 @@
     "db:seed": "node --env-file-if-exists=.env --import tsx src/db/scripts/seed.ts",
     "db:reset": "node --env-file-if-exists=.env --import tsx src/db/scripts/reset.ts",
     "migrate:inventory": "node --env-file-if-exists=.env --import tsx src/migration/scripts/inventory.ts",
+    "migrate:load": "node --env-file-if-exists=.env --import tsx src/migration/scripts/load.ts",
+    "migrate:verify": "node --env-file-if-exists=.env --import tsx src/migration/scripts/verify.ts",
     "check:no-migration-data": "node --import tsx src/migration/scripts/check-no-migration-data.ts",
     "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1167.0",
     "cheerio": "^1.2.0",
     "compression": "^1.8.2",
     "drizzle-orm": "^0.45.4",

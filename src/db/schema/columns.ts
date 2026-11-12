@@ -32,3 +32,18 @@ export const notOwnParentCheck = (name: string, parent: Column, self: Column) =>
  */
 export const httpUrlCheck = (name: string, column: Column) =>
   check(name, sql`${column} IS NULL OR ${column} ~* '^https?://[^[:space:][:cntrl:]]+$'`);
+
+/**
+ * A path on this site: one leading slash, no second slash or backslash after
+ * it, and no spaces or control characters, so a browser can't read it as
+ * another site's address. Matches SITE_PATH in src/validation/catalogue.ts.
+ * The backslash is checked with chr(92), so the pattern needs no escaping.
+ * 2048 is MAX_SITE_PATH_LENGTH.
+ */
+export const sitePathCheck = (name: string, column: Column) =>
+  check(
+    name,
+    sql`${column} ~ '^/([^/[:space:][:cntrl:]][^[:space:][:cntrl:]]*)?$'
+      AND strpos(${column}, chr(92)) = 0
+      AND length(${column}) <= 2048`,
+  );

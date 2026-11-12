@@ -136,7 +136,8 @@ async function contractsWithSupplier(reader: Executor, where: SQL): Promise<Cont
       supplier: { id: suppliers.id, name: suppliers.name, url: suppliers.url },
     })
     .from(contracts)
-    .innerJoin(suppliers, eq(contracts.supplierId, suppliers.id))
+    // A contract migrated from the current Hub has no supplier.
+    .leftJoin(suppliers, eq(contracts.supplierId, suppliers.id))
     .where(where)
     .orderBy(sql`${contracts.startDate} DESC NULLS LAST`, asc(contracts.id));
   return rows.map((row) => ({ ...row.contract, supplier: row.supplier }));

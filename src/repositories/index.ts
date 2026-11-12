@@ -11,6 +11,7 @@ import {
   pages,
   productTeamServiceInstances,
   productTeamServices,
+  redirects,
   supplierTools,
   suppliers,
   tools,
@@ -22,9 +23,14 @@ import {
   type CatalogueReadRepository,
 } from "./catalogue-read-repository.js";
 import { runInTransaction, type Executor } from "./executor.js";
+import { createMigrationRepository, type MigrationRepository } from "./migration-repository.js";
+import { createRedirectLookup, type RedirectLookup } from "./redirect-lookup-repository.js";
 import { createRepository, type Repository } from "./repository.js";
 
 export type { ConnectOptions } from "../db/client.js";
+// The check db:reset and db:seed make before changing data, for the data
+// migration's own check of which database it writes to.
+export { UnsafeDatabaseOperationError, assertLocalDatabase } from "../db/local-database.js";
 export type { EntityType } from "../db/entity-types.js";
 export type { AuditAction, AuditEntry, AuditLogRepository } from "./audit-log-repository.js";
 export type { CatalogueReadRepository } from "./catalogue-read-repository.js";
@@ -35,6 +41,14 @@ export {
   type RepositorySubject,
 } from "./errors.js";
 export type { Executor } from "./executor.js";
+export {
+  MIGRATION_ENTITY_TYPES,
+  lastActorKey,
+  type MigrationEntityType,
+  type MigrationRepository,
+  type MigrationSnapshot,
+} from "./migration-repository.js";
+export type { RedirectLookup } from "./redirect-lookup-repository.js";
 export type * from "./read-models.js";
 export {
   createRepository,
@@ -69,6 +83,9 @@ export interface TransactionRepositories {
   readonly businessUnits: Repository<typeof businessUnits>;
   readonly businessUnitProductTeamServices: Repository<typeof businessUnitProductTeamServices>;
   readonly pages: Repository<typeof pages>;
+  readonly redirects: Repository<typeof redirects>;
+  /** What the data migration needs to know about the database, and its lock. */
+  readonly migration: MigrationRepository;
   /** Reads the audit log. Entries are only added by the writes above. */
   readonly auditLog: AuditLogRepository;
   /**
@@ -87,6 +104,8 @@ export interface Repositories extends TransactionRepositories {
    * of the database, which an open transaction can't give.
    */
   readonly catalogue: CatalogueReadRepository;
+  /** Finds where old addresses now go, for the read pages. */
+  readonly redirectLookup: RedirectLookup;
 }
 
 const factories = {
@@ -111,6 +130,7 @@ const factories = {
     "business_unit_product_team_service",
   ),
   pages: createRepository(pages, "page"),
+  redirects: createRepository(redirects, "redirect"),
 } as const;
 
 function createTransactionRepositories(executor: Executor): TransactionRepositories {
@@ -130,6 +150,8 @@ function createTransactionRepositories(executor: Executor): TransactionRepositor
     businessUnits: factories.businessUnits(executor),
     businessUnitProductTeamServices: factories.businessUnitProductTeamServices(executor),
     pages: factories.pages(executor),
+    redirects: factories.redirects(executor),
+    migration: createMigrationRepository(executor),
     auditLog: createAuditLogRepository(executor),
     transaction<R>(work: (repositories: TransactionRepositories) => Promise<R>): Promise<R> {
       return runInTransaction(executor, (tx) => work(createTransactionRepositories(tx)));
@@ -142,6 +164,7 @@ export function createRepositories(db: Database): Repositories {
   return {
     ...createTransactionRepositories(db),
     catalogue: createCatalogueReadRepository(db),
+    redirectLookup: createRedirectLookup(db),
   };
 }
 

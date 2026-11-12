@@ -5,8 +5,8 @@ export type RepositoryErrorKind =
 
 export type RepositoryOperation = "read" | "create" | "update" | "remove";
 
-/** What failed: a type of record, or an entry in the audit log. */
-export type RepositorySubject = EntityType | "audit_entry";
+/** What failed: a type of record, an entry in the audit log, or a data migration run. */
+export type RepositorySubject = EntityType | "audit_entry" | "migration_run";
 
 const DESCRIPTIONS: Readonly<Record<RepositoryErrorKind, string>> = {
   not_found: "there is no such record",

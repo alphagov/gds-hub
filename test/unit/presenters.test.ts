@@ -472,6 +472,36 @@ describe("contracts", () => {
   });
 });
 
+describe("a contract with no supplier", () => {
+  it("is titled without one, as the current Hub's contracts have none", () => {
+    const contract = presentContract({
+      id: 2,
+      toolId: 1,
+      supplierId: null,
+      startDate: null,
+      endDate: null,
+      licenseType: null,
+      licenseTerms: null,
+      procurementRoute: null,
+      cost: null,
+      costModel: "Per seat",
+      commercials: null,
+      dataProtectionAndSecurity: null,
+      operationalPolicy: null,
+      totalUsers: null,
+      renewalNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      supplier: null,
+    });
+
+    expect(contract).toEqual({
+      title: "Contract",
+      rows: [{ key: { text: "Cost model" }, value: { text: "Per seat" } }],
+    });
+  });
+});
+
 describe("vendor page", () => {
   it("belongs to the Tools section and lists the vendor's contacts", () => {
     const page = presentVendor(vendorDetail(), groups);

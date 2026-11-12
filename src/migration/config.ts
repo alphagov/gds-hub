@@ -1,7 +1,9 @@
 import { existsSync, realpathSync, statSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { load } from "cheerio";
+import type { S3Location, StorageLocation } from "./storage/types.js";
 
 /** This repository's root (src/migration/ or dist/migration/ is two levels down). */
 export const REPO_ROOT = realpathSync(fileURLToPath(new URL("../..", import.meta.url)));
@@ -43,19 +45,26 @@ export interface MigrationArgs {
   readonly siteOrigin?: string | undefined;
   readonly assetBasePath?: string | undefined;
   readonly reportDir?: string | undefined;
+  readonly databaseHost?: string | undefined;
 }
 
 export interface MigrationOptions {
-  /** The folder of YAML data files. */
-  readonly dataDir: string;
-  /** The folder of built HTML. */
-  readonly buildDir: string;
+  /** The YAML data files: a local folder or an S3 prefix. */
+  readonly data: StorageLocation;
+  /** The built HTML: a local folder or an S3 prefix. */
+  readonly build: StorageLocation;
   readonly contentSelector: string;
   readonly stripSelectors: readonly string[];
   /** Origins of the old site. Absolute links to them are treated as internal. */
   readonly siteOrigins: readonly string[];
   readonly assetBasePath: string;
-  readonly reportDir: string;
+  /** Where reports go: a local folder or an S3 prefix. */
+  readonly reports: StorageLocation;
+  /**
+   * The database host the load and verify scripts may use when it isn't a
+   * local one. It must match the host in DATABASE_URL (see database-target.ts).
+   */
+  readonly databaseHost: string | undefined;
 }
 
 export class MigrationConfigError extends Error {
@@ -83,6 +92,15 @@ function setting(arg: string | undefined, value: string | undefined): string | u
   return trimmed === "" ? undefined : trimmed;
 }
 
+/**
+ * A local path with a leading ~ replaced by the home folder. A shell does
+ * this, but not for a value in .env, in quotes or after "=".
+ */
+export function expandHome(raw: string): string {
+  if (raw === "~") return os.homedir();
+  return raw.startsWith("~/") ? path.join(os.homedir(), raw.slice(2)) : raw;
+}
+
 /** The real path of something that may not exist yet: its nearest existing parent, resolved. */
 function resolvePossiblyMissing(target: string): string {
   const absolute = path.resolve(target);
@@ -104,13 +122,50 @@ function isValidSelector(selector: string): boolean {
   }
 }
 
+/** S3 bucket naming rules: 3 to 63 lower-case letters, digits, dots and hyphens. */
+const S3_BUCKET = /^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/;
+
+const S3_SCHEME = /^s3:\/\//i;
+
+/** Any other kind of address, such as https://. */
+const OTHER_SCHEME = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/**
+ * An s3://bucket/prefix address as a location, or undefined if it isn't a
+ * plain one: a valid bucket name, and a prefix of plain folder names with no
+ * query, fragment, parent steps, backslashes or spaces. The prefix is given a
+ * trailing slash, so it only matches whole folder names.
+ */
+export function parseS3Location(address: string): S3Location | undefined {
+  const rest = address.replace(S3_SCHEME, "");
+  const slash = rest.indexOf("/");
+  const bucket = slash === -1 ? rest : rest.slice(0, slash);
+  let prefix = slash === -1 ? "" : rest.slice(slash + 1);
+  if (!S3_BUCKET.test(bucket) || bucket.includes("..")) return undefined;
+  if (/[?#\\\s\p{Cc}]/u.test(prefix)) return undefined;
+  if (prefix !== "" && !prefix.endsWith("/")) prefix = `${prefix}/`;
+  if (prefix !== "") {
+    const segments = prefix.slice(0, -1).split("/");
+    if (segments.some((segment) => segment === "" || segment === "." || segment === "..")) {
+      return undefined;
+    }
+  }
+  return { kind: "s3", bucket, prefix };
+}
+
+/** A host name or IPv4 address, as in a DATABASE_URL. */
+const HOST_NAME =
+  /^(?=.{1,253}$)[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)*$/;
+
 /**
  * Reads the migration settings from the command line and the environment.
  * Throws MigrationConfigError listing every problem, before anything is read.
  *
- * Input folders must exist and sit outside this repository (so real Hub
- * files can never be committed by accident), except the synthetic fixtures.
- * Symbolic links are followed first.
+ * Inputs are local folders or s3:// addresses. Local folders must exist and
+ * sit outside this repository (so real Hub files can never be committed by
+ * accident), except the synthetic fixtures. Symbolic links are followed
+ * first. Messages never repeat a refused address, which could hold a
+ * credential.
  */
 export function loadMigrationOptions(
   args: MigrationArgs,
@@ -120,16 +175,39 @@ export function loadMigrationOptions(
   const issues: string[] = [];
   const fixturesDir = path.join(repoRoot, "test", "fixtures", "migration");
 
-  const inputDirectory = (raw: string | undefined, label: string): string => {
+  const unset: StorageLocation = { kind: "local", dir: "" };
+
+  const inputLocation = (raw: string | undefined, label: string): StorageLocation => {
     if (raw === undefined) {
       issues.push(`${label} is not set`);
-      return "";
+      return unset;
     }
+    if (S3_SCHEME.test(raw)) {
+      const location = parseS3Location(raw);
+      if (location === undefined) {
+        issues.push(
+          `${label} must be an s3://bucket/prefix/ address with a valid bucket name and plain folder names`,
+        );
+        return unset;
+      }
+      return location;
+    }
+    if (OTHER_SCHEME.test(raw)) {
+      issues.push(`${label} must be a local folder or an s3:// address`);
+      return unset;
+    }
+    const dir = inputDirectory(raw, label);
+    return { kind: "local", dir };
+  };
+
+  const inputDirectory = (raw: string, label: string): string => {
     let resolved: string;
     try {
-      resolved = realpathSync(path.resolve(raw));
+      resolved = realpathSync(path.resolve(expandHome(raw)));
     } catch {
-      issues.push(`${label} does not exist`);
+      // A local path is safe to show, and says where it looked. Relative
+      // paths are from the repository root, where npm runs the scripts.
+      issues.push(`${label} does not exist: no folder at ${path.resolve(expandHome(raw))}`);
       return "";
     }
     if (!statSync(resolved).isDirectory()) {
@@ -147,11 +225,34 @@ export function loadMigrationOptions(
     return resolved;
   };
 
-  const dataDir = inputDirectory(setting(args.data, env.HUB_DATA_DIR), "HUB_DATA_DIR (or --data)");
-  const buildDir = inputDirectory(
-    setting(args.build, env.HUB_BUILD_DIR),
-    "HUB_BUILD_DIR (or --build)",
-  );
+  const data = inputLocation(setting(args.data, env.HUB_DATA_DIR), "HUB_DATA_DIR (or --data)");
+  const build = inputLocation(setting(args.build, env.HUB_BUILD_DIR), "HUB_BUILD_DIR (or --build)");
+
+  const reportLocation = (raw: string | undefined): StorageLocation => {
+    if (raw !== undefined && S3_SCHEME.test(raw)) {
+      const location = parseS3Location(raw);
+      if (location === undefined) {
+        issues.push(
+          "MIGRATION_REPORT_DIR (or --report-dir) must be an s3://bucket/prefix/ address with a valid bucket name and plain folder names",
+        );
+        return unset;
+      }
+      return location;
+    }
+    const dir = resolvePossiblyMissing(
+      raw === undefined ? path.join(repoRoot, "migration-reports") : expandHome(raw),
+    );
+    const ignoredOutputDirs = [
+      path.join(repoRoot, "migration-reports"),
+      path.join(repoRoot, "migration-data"),
+    ];
+    if (isInside(dir, repoRoot) && !ignoredOutputDirs.some((ignored) => isInside(dir, ignored))) {
+      issues.push(
+        "MIGRATION_REPORT_DIR (or --report-dir) is inside this repository but not in migration-reports/ or migration-data/, which git ignores",
+      );
+    }
+    return { kind: "local", dir };
+  };
 
   const contentSelector =
     setting(args.contentSelector, env.MIGRATION_CONTENT_SELECTOR) ?? DEFAULT_CONTENT_SELECTOR;
@@ -193,28 +294,25 @@ export function loadMigrationOptions(
     );
   }
 
-  const reportDir = resolvePossiblyMissing(
-    setting(args.reportDir, env.MIGRATION_REPORT_DIR) ?? path.join(repoRoot, "migration-reports"),
-  );
-  const ignoredOutputDirs = [
-    path.join(repoRoot, "migration-reports"),
-    path.join(repoRoot, "migration-data"),
-  ];
-  if (isInside(reportDir, repoRoot) && !ignoredOutputDirs.some((dir) => isInside(reportDir, dir))) {
+  const reports = reportLocation(setting(args.reportDir, env.MIGRATION_REPORT_DIR));
+
+  const databaseHost = setting(args.databaseHost, env.MIGRATION_DATABASE_HOST);
+  if (databaseHost !== undefined && !HOST_NAME.test(databaseHost)) {
     issues.push(
-      "MIGRATION_REPORT_DIR (or --report-dir) is inside this repository but not in migration-reports/ or migration-data/, which git ignores",
+      "MIGRATION_DATABASE_HOST (or --database-host) must be a host name, such as the one in DATABASE_URL",
     );
   }
 
   if (issues.length > 0) throw new MigrationConfigError(issues);
 
   return Object.freeze({
-    dataDir,
-    buildDir,
+    data,
+    build,
     contentSelector,
     stripSelectors: Object.freeze([...DEFAULT_STRIP_SELECTORS, ...extraStrip]),
     siteOrigins: Object.freeze(siteOrigins),
     assetBasePath,
-    reportDir,
+    reports,
+    databaseHost,
   });
 }

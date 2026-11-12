@@ -1,5 +1,4 @@
 import { and, eq, getTableName, like, ne, sql, type SQL } from "drizzle-orm";
-import type { Config } from "../config.js";
 import type { Database, Transaction } from "./client.js";
 import { entityTypeOf } from "./entity-types.js";
 import { MIGRATIONS_SCHEMA, MIGRATIONS_TABLE } from "./migrate.js";
@@ -13,15 +12,10 @@ import {
 } from "./schema/index.js";
 import { SEED_ACTOR } from "./seed/seed-data.js";
 import { APP_RELATION_NAMES, APP_TABLES, APP_VIEW_NAMES, firstNonEmptyTable } from "./tables.js";
+import { UnsafeDatabaseOperationError } from "./local-database.js";
 
-/** Hosts a local or CI database runs on. "db" is the docker compose service. */
-const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "db"]);
-
-/**
- * Query parameters that can point a connection somewhere other than the
- * URL's host. node-postgres lets ?host= override the host in the URL.
- */
-const HOST_OVERRIDE_PARAMS = ["host", "hostaddr"];
+// Kept here too, for the scripts and tests that import them from reset.
+export { UnsafeDatabaseOperationError, assertLocalDatabase } from "./local-database.js";
 
 /** The schema the app's migrations create everything in. */
 const APP_SCHEMA = "public";
@@ -43,36 +37,6 @@ const DEPENDENT_OBJECTS_STILL_EXIST = "2BP01";
 
 const HOW_TO_START_AGAIN =
   "To start again with a local docker compose database, run `docker compose down -v`.";
-
-export class UnsafeDatabaseOperationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "UnsafeDatabaseOperationError";
-  }
-}
-
-/**
- * Throws unless the database is safe to wipe or fill with synthetic data:
- * not in production, and on a local host.
- */
-export function assertLocalDatabase(config: Pick<Config, "nodeEnv" | "databaseUrl">): void {
-  if (config.nodeEnv === "production") {
-    throw new UnsafeDatabaseOperationError("refusing to change data when NODE_ENV is production");
-  }
-  const url = new URL(config.databaseUrl);
-  for (const param of HOST_OVERRIDE_PARAMS) {
-    if (url.searchParams.has(param)) {
-      throw new UnsafeDatabaseOperationError(
-        `refusing a DATABASE_URL with a "${param}" query parameter; put the host in the URL itself`,
-      );
-    }
-  }
-  if (!LOCAL_HOSTS.has(url.hostname)) {
-    throw new UnsafeDatabaseOperationError(
-      `refusing to change data on a non-local database host (${url.hostname})`,
-    );
-  }
-}
 
 interface Relation {
   readonly schema: string;
@@ -166,6 +130,9 @@ async function assertResettable(tx: Transaction, relations: readonly Relation[])
   const names = relations.filter(({ schema }) => schema === APP_SCHEMA).map(({ name }) => name);
   // Nothing the migrations create, so no data to check. There may be a migration history.
   if (names.length === 0) return;
+  // Only the app's tables the database has: one migrated before a newer
+  // migration (such as a new table) is still reset, then migrated again.
+  const existing: ReadonlySet<string> = new Set(names);
 
   if (!names.includes("audit_log")) {
     throw new UnsafeDatabaseOperationError(
@@ -185,7 +152,7 @@ async function assertResettable(tx: Transaction, relations: readonly Relation[])
 
   const seedEntries = await tx.$count(auditLog, eq(auditLog.actorSubject, SEED_ACTOR.subject));
   if (seedEntries === 0) {
-    const nonEmpty = await firstNonEmptyTable(tx);
+    const nonEmpty = await firstNonEmptyTable(tx, existing);
     if (nonEmpty !== undefined) {
       throw new UnsafeDatabaseOperationError(
         `refusing to reset a database with data that wasn't created by the seed (in ${nonEmpty}). ${HOW_TO_START_AGAIN}`,
@@ -196,7 +163,7 @@ async function assertResettable(tx: Transaction, relations: readonly Relation[])
 
   // Seed entries only show the database was seeded at some point. Each row
   // still needs its own record, so data written without one isn't dropped.
-  const unrecorded = await firstTableWithUnrecordedRows(tx);
+  const unrecorded = await firstTableWithUnrecordedRows(tx, existing);
   if (unrecorded !== undefined) {
     throw new UnsafeDatabaseOperationError(
       `refusing to reset a database with rows that have no audit record of being created (in ${unrecorded}). ${HOW_TO_START_AGAIN}`,
@@ -206,11 +173,15 @@ async function assertResettable(tx: Transaction, relations: readonly Relation[])
 
 /**
  * The name of the first audited table with a row that has no "create" entry
- * in audit_log, or undefined if every row has one.
+ * in audit_log, or undefined if every row has one. Only the tables in
+ * `existing` are checked.
  */
-async function firstTableWithUnrecordedRows(tx: Transaction): Promise<string | undefined> {
+async function firstTableWithUnrecordedRows(
+  tx: Transaction,
+  existing: ReadonlySet<string>,
+): Promise<string | undefined> {
   for (const table of APP_TABLES) {
-    if (table === auditLog) continue;
+    if (table === auditLog || !existing.has(getTableName(table))) continue;
     const result = await tx.execute<{ found: boolean }>(sql`
       SELECT EXISTS (
         SELECT 1 FROM ${table} AS r

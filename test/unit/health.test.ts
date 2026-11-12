@@ -2,14 +2,19 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../../src/app.js";
 import { silentLogger } from "../../src/lib/logger.js";
 import { fakeCatalogue } from "./catalogue-fixtures.js";
-import { startApp, testConfig, type RunningApp } from "./helpers.js";
+import { noRedirects, startApp, testConfig, type RunningApp } from "./helpers.js";
 
 describe("GET /health", () => {
   let running: RunningApp;
 
   beforeAll(async () => {
     running = await startApp(
-      createApp({ config: testConfig, logger: silentLogger, catalogue: fakeCatalogue() }),
+      createApp({
+        config: testConfig,
+        logger: silentLogger,
+        catalogue: fakeCatalogue(),
+        redirects: noRedirects,
+      }),
     );
   });
 

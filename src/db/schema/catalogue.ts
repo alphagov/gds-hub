@@ -98,9 +98,8 @@ export const contracts = pgTable(
     toolId: fk("tool_id")
       .notNull()
       .references(() => tools.id, { onDelete: "restrict" }),
-    supplierId: fk("supplier_id")
-      .notNull()
-      .references(() => suppliers.id, { onDelete: "restrict" }),
+    // Optional: the current Hub data doesn't record suppliers.
+    supplierId: fk("supplier_id").references(() => suppliers.id, { onDelete: "restrict" }),
     startDate: date("start_date", { mode: "string" }),
     endDate: date("end_date", { mode: "string" }),
     licenseType: text("license_type"),

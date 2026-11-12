@@ -14,6 +14,7 @@ import {
   pages,
   productTeamServiceInstances,
   productTeamServices,
+  redirects,
   supplierTools,
   suppliers,
   tools,
@@ -37,6 +38,7 @@ export const APP_TABLES: readonly PgTable[] = [
   businessUnits,
   businessUnitProductTeamServices,
   pages,
+  redirects,
   auditLog,
 ];
 
@@ -49,11 +51,17 @@ export const APP_RELATION_NAMES: ReadonlySet<string> = new Set([
   ...APP_VIEW_NAMES,
 ]);
 
-/** The name of the first app table that has any rows, or undefined if they are all empty. */
+/**
+ * The name of the first app table that has any rows, or undefined if they are
+ * all empty. Give `existing` to check only the tables a database has, such as
+ * one migrated before a newer table was added.
+ */
 export async function firstNonEmptyTable(
   db: Pick<Database, "$count">,
+  existing?: ReadonlySet<string>,
 ): Promise<string | undefined> {
   for (const table of APP_TABLES) {
+    if (existing !== undefined && !existing.has(getTableName(table))) continue;
     if ((await db.$count(table)) > 0) return getTableName(table);
   }
   return undefined;

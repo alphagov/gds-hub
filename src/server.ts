@@ -3,6 +3,7 @@ import { ConfigError, loadConfig, type Config } from "./config.js";
 import { createJsonLogger } from "./lib/logger.js";
 import { connectRepositories } from "./repositories/index.js";
 import { createCatalogueService } from "./services/catalogue/catalogue-service.js";
+import { createRedirectService } from "./services/redirects/redirect-service.js";
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -44,14 +45,18 @@ const database = connectRepositories(config.databaseUrl, {
   },
 });
 const catalogue = createCatalogueService(database.repositories);
+const redirects = createRedirectService(database.repositories);
 
-const server = createApp({ config, logger, catalogue }).listen(config.port, (err?: Error) => {
-  if (err) {
-    logger.error("failed to start server", { err });
-    process.exit(1);
-  }
-  logger.info("server listening", { port: config.port, env: config.nodeEnv });
-});
+const server = createApp({ config, logger, catalogue, redirects }).listen(
+  config.port,
+  (err?: Error) => {
+    if (err) {
+      logger.error("failed to start server", { err });
+      process.exit(1);
+    }
+    logger.info("server listening", { port: config.port, env: config.nodeEnv });
+  },
+);
 
 function shutdown(signal: NodeJS.Signals): void {
   logger.info("shutting down", { signal });
