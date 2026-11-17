@@ -57,20 +57,54 @@ To stop everything, run `docker compose down`. Add `-v` to delete the database v
    cp .env.example .env
    ```
 
-2. Start only the database:
+2. Start docker
 
    ```bash
-   docker compose up -d db
+   docker compose up -d
    ```
 
-3. Load the environment variables and start the app in watch mode:
+4. Load the environment variables
 
    ```bash
    set -a; . ./.env; set +a
+   ```
+
+3. Create the tables and load the synthetic sample data:
+
+   ```bash
+   npm run db:reset
+   ```
+
+4. Start the app in watch mode:
+
+   ```bash
    npm run dev
    ```
 
 The app restarts when you change a file in `src/`. It runs at <http://localhost:3000>.
+
+## Database
+
+`npm run db:reset` is all you need to get a local database ready for development. It applies the migrations and loads synthetic sample data (made-up values only). Run it again whenever you want to start from a clean, seeded database. It reads `DATABASE_URL` from `.env`.
+
+| Command               | What it does                                                      |
+| --------------------- | ----------------------------------------------------------------- |
+| `npm run db:reset`    | Drops the app's tables, applies the migrations and seeds the data |
+| `npm run db:generate` | Generates a new migration from changes to the Drizzle schema      |
+| `npm run db:migrate`  | Applies pending migrations only, without seeding or dropping      |
+| `npm run db:seed`     | Loads the synthetic sample data only                              |
+
+`db:reset` and `db:seed` only run against a local database (`localhost`, `127.0.0.1`, `[::1]` or `db`). `db:reset` also checks what is in the database before it drops anything. It refuses if the database has tables this app doesn't create, imported data, or rows with no audit record of being created. If it refuses, run `docker compose down -v` to delete the database volume, then start the database again with `docker compose up -d db` and run `npm run db:reset`.
+
+Migrations must be backward compatible (expand, then contract). After changing the schema, run `npm run db:generate` and commit the generated SQL.
+
+## Migrating data from the current Hub
+
+The migration loads the current Hub's built HTML and YAML data files into the database. See [docs/migration.md](docs/migration.md) for the steps, and [docs/migration-validation.md](docs/migration-validation.md) to check it works without the real files.
+
+- Use a separate, empty database for migrated data. The loader refuses any database that has ever been seeded, so seed data and migrated data never mix.
+- `npm run migrate:load` is a dry run unless you add `--apply`.
+- Never commit the inputs, the reports or any migrated data. `npm run check:no-migration-data` checks this before every commit and in CI.
 
 ## Configuration
 
@@ -105,6 +139,9 @@ Never commit `.env` or any real credentials. In AWS, secrets come from Secrets M
 | `npm run typecheck` | Type-checks the app, the tests and the config files              |
 | `npm test`          | Runs the Vitest unit tests                                       |
 | `npm run test:e2e`  | Builds the app, starts it on port 3100 and runs Playwright tests |
+| `npm run db:reset`  | Sets up the local database with migrations and sample data       |
+
+The other database commands are in [Database](#database). The `migrate:*` and `check:no-migration-data` commands are in [docs/migration.md](docs/migration.md).
 
 Before you open a pull request, run:
 
@@ -121,6 +158,8 @@ src/
   app.ts          builds the Express app (does not start a server)
   server.ts       loads config, starts the server and handles shutdown
   config.ts       reads and validates environment variables
+  db/             database schema, seed data and the db:* scripts
+  migration/      the inventory, load and verify scripts for the current Hub's data
   lib/            shared code, such as the logger
   middleware/     Express middleware, such as request IDs and request logging
   routes/         route handlers
@@ -158,6 +197,14 @@ To find out what is using a port, run `lsof -nP -iTCP:5432 -sTCP:LISTEN`.
 **The app exits straight away with "invalid configuration"**
 
 A required environment variable is missing or invalid. The log message names each one. Check your `.env` file and make sure you loaded it into your shell.
+
+**Pages are empty or fail with "relation does not exist"**
+
+The database isn't set up. Run `npm run db:reset`.
+
+**`npm run db:reset` says "refusing to reset"**
+
+The database holds something `db:reset` won't throw away, and the message says what. To start again, run `docker compose down -v`, then `docker compose up -d db` and `npm run db:reset`.
 
 ## Contributing
 
