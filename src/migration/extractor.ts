@@ -331,6 +331,7 @@ function markdownTable($: CheerioAPI, table: Element): string {
             .turndown($(cell).html() ?? "")
             .trim()
             .replace(/\s*\n+\s*/g, "<br>")
+            .replace(/\\/g, "\\\\")
             .replace(/\|/g, "\\|"),
         ),
     );
