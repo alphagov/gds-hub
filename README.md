@@ -63,19 +63,19 @@ To stop everything, run `docker compose down`. Add `-v` to delete the database v
    docker compose up -d
    ```
 
-4. Load the environment variables
+3. Load the environment variables
 
    ```bash
    set -a; . ./.env; set +a
    ```
 
-3. Create the tables and load the synthetic sample data:
+4. Create the tables and load the synthetic sample data:
 
    ```bash
    npm run db:reset
    ```
 
-4. Start the app in watch mode:
+5. Start the app in watch mode:
 
    ```bash
    npm run dev
