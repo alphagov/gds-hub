@@ -1,0 +1,18 @@
+# SYNTHETIC FIXTURE: invented capabilities for the migration tests. Not real Hub data.
+note-taking:
+  group: Collaboration
+  name: Note taking
+  description: Writing down example notes together.
+  tools:
+    - lanternly
+    - kettle-board
+  comment: |
+    We plan to compare example tools.
+  weight: 10
+build-pipelines:
+  group: Operations Tools
+  name: Build pipelines
+  description: Building and releasing example code.
+  tools:
+    - quillstack
+  hide_in_navigation: true

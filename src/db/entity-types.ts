@@ -21,6 +21,7 @@ export const ENTITY_TYPE_BY_TABLE = {
   business_units: "business_unit",
   business_unit_product_team_services: "business_unit_product_team_service",
   pages: "page",
+  redirects: "redirect",
 } as const;
 
 export type AuditedTableName = keyof typeof ENTITY_TYPE_BY_TABLE;

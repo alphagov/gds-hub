@@ -15,6 +15,7 @@ import {
   pages,
   productTeamServiceInstances,
   productTeamServices,
+  redirects,
   supplierTools,
   suppliers,
   tools,
@@ -30,6 +31,7 @@ import {
   seedOwnershipLevels,
   seedPages,
   seedProductTeamServices,
+  seedRedirects,
   seedSuppliers,
   seedTools,
   seedVendors,
@@ -262,5 +264,8 @@ export async function seedDatabase(db: Database): Promise<void> {
       )
       .returning();
     await audit(tx, pages, pageRows);
+
+    const redirectRows = await tx.insert(redirects).values(seedRedirects).returning();
+    await audit(tx, redirects, redirectRows);
   });
 }

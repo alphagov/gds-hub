@@ -39,8 +39,8 @@ docker compose up -d db
 ## Data migration
 
 - NEVER commit migrated or source data: no copies of current Hub files, exports, reports with content, or database dumps.
-- Source and built HTML are read only from HUB_SOURCE_DIR and HUB_BUILD_DIR (outside this repo and NOT available in the Claude Code sandbox). Never try to read, clone or build them; build and test against synthetic fixtures only. The developer runs inventory, verify and apply manually outside the sandbox. Output goes to the git-ignored migration-data/ and migration-reports/.
-- Migrate page content from the built HTML (content area only, converted to markdown) and structured data from YAML. Never execute Ruby/ERB.
+- The migration has two inputs: the built HTML (HUB_BUILD_DIR) and the YAML data files (HUB_DATA_DIR). Both are plain folders outside this repo and NOT available in the Claude Code sandbox. The old Hub's page source files (markdown, ERB, front matter) are not used. Never try to read, clone or build the real inputs or the old Hub; build and test against synthetic fixtures only. The developer runs inventory, verify and apply manually outside the sandbox. Output goes to the git-ignored migration-data/ and migration-reports/.
+- Migrate page content from the built HTML (content area only, converted to markdown) and structured data from YAML. Built pages rendered from YAML are matched to their record and only become redirects, never pages, so nothing is migrated twice. Never execute Ruby/ERB.
 - Migration test fixtures are hand-written synthetic samples (structure only, invented values). CI uses the synthetic seed; migrated data is for local databases only.
 - npm run check:no-migration-data must pass before every commit.
 

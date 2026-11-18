@@ -187,6 +187,10 @@ describe("labels", () => {
       text: "Complete",
       classes: "govuk-tag--green",
     });
+    expect(migrationStatusTag("not_applicable")).toEqual({
+      text: "Not applicable",
+      classes: "govuk-tag--grey",
+    });
   });
 
   it("only makes summary rows for values that have text", () => {
@@ -464,6 +468,36 @@ describe("contracts", () => {
         { key: { text: "Licence type" }, value: { text: "Per seat" } },
         { key: { text: "Cost" }, value: { text: "£100 a year" } },
       ],
+    });
+  });
+});
+
+describe("a contract with no supplier", () => {
+  it("is titled without one, as the current Hub's contracts have none", () => {
+    const contract = presentContract({
+      id: 2,
+      toolId: 1,
+      supplierId: null,
+      startDate: null,
+      endDate: null,
+      licenseType: null,
+      licenseTerms: null,
+      procurementRoute: null,
+      cost: null,
+      costModel: "Per seat",
+      commercials: null,
+      dataProtectionAndSecurity: null,
+      operationalPolicy: null,
+      totalUsers: null,
+      renewalNotes: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      supplier: null,
+    });
+
+    expect(contract).toEqual({
+      title: "Contract",
+      rows: [{ key: { text: "Cost model" }, value: { text: "Per seat" } }],
     });
   });
 });

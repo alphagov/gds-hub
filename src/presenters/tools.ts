@@ -75,7 +75,7 @@ export function instanceAccess(
 
 export function presentContract(contract: ContractDetail): ContractViewModel {
   return {
-    title: `Contract with ${contract.supplier.name}`,
+    title: contract.supplier === null ? "Contract" : `Contract with ${contract.supplier.name}`,
     rows: textRows([
       ["Dates", dateRange(contract.startDate, contract.endDate)],
       ["Licence type", contract.licenseType],

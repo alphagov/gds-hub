@@ -65,8 +65,8 @@ export interface ProductTeamServiceWithUnits extends ProductTeamServiceSummary {
   readonly businessUnits: readonly BusinessUnitSummary[];
 }
 
-/** A contract with the supplier it is with. */
-export type ContractDetail = ContractRecord & { readonly supplier: SupplierSummary };
+/** A contract with the supplier it is with, if one is recorded. */
+export type ContractDetail = ContractRecord & { readonly supplier: SupplierSummary | null };
 
 /** An instance with its current and target ownership levels. */
 export type InstanceWithOwnership = InstanceRecord & {

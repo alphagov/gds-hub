@@ -1,0 +1,4 @@
+#!/bin/sh
+# Stops a commit that would add migrated or source data from the current Hub.
+# Install once with: npm run hooks:install
+exec npm run --silent check:no-migration-data

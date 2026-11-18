@@ -9,6 +9,7 @@ import type {
   ownershipLevels,
   pages,
   productTeamServices,
+  redirects,
   suppliers,
   tools,
   vendors,
@@ -600,4 +601,10 @@ export const seedPages: SeedPage[] = [
     ownerName: "Incident Response Team",
     productTeamService: "incident-response-team",
   },
+];
+
+/** Old addresses and where they now go, like those the migration loads. */
+export const seedRedirects: Omit<Insert<typeof redirects>, Managed>[] = [
+  { oldPath: "/tools/pipeline-pilot-ci/", newPath: "/tools/pipeline-pilot" },
+  { oldPath: "/collaboration-tools.html", newPath: "/capabilities/team-messaging" },
 ];

@@ -1,0 +1,37 @@
+# SYNTHETIC FIXTURE: invented tools for the migration tests. Not real Hub data.
+kettle-board:
+  name: Kettle Board
+  url: https://kettle.example.com
+  engineering_or_business_tool: Business Tool
+  description: |
+    A shared board for planning example work.
+  getting_access: |
+    Ask in the example channel for an invite.
+  supported_by_gds_software_service_desk: true
+  ownership_level: team_owned
+  target_ownership_level: team-owned
+  identity_migration_status: Migration to DSIT complete
+  migration_date: 14/02/2026
+  not_in_use: false
+  cost_model: Per seat
+  commercials: Annual licence
+  license_start_date: 01/04/2025
+  license_end_date: 31/03/2027
+  total_users: 120
+  last_updated: 02/01/2026
+  weight: 3
+  group: Planning
+lanternly:
+  name: Lantern Notes & Wiki
+  url: https://lanternly.example.com
+  engineering_or_business_tool: Business Tool
+  description: |
+    Notes and a wiki for example teams.
+  ownership_level: undocumented
+quillstack:
+  name: Quillstack
+  engineering_or_business_tool: Engineering Tool
+  description: Builds example pipelines.
+  identity_migration_status: Waiting for the example supplier
+  not_in_use: true
+  favourite_colour: teal

@@ -255,7 +255,7 @@ describe("tool detail", () => {
 
   it("lists the tool's contracts, newest first, each with its supplier", async () => {
     const detail = await toolDetail("acme-hosting");
-    expect(detail.contracts.map((contract) => [contract.id, contract.supplier.name])).toEqual([
+    expect(detail.contracts.map((contract) => [contract.id, contract.supplier?.name])).toEqual([
       [ids.newerContract, "Reseller Two"],
       [ids.olderContract, "Reseller One"],
     ]);
@@ -414,5 +414,39 @@ describe("read models", () => {
   it("are not offered inside a write transaction, so each is read from one snapshot", async () => {
     const offered = await repos.transaction((tx) => Promise.resolve("catalogue" in tx));
     expect(offered).toBe(false);
+  });
+});
+
+// Last, so the records it adds don't change the lists the tests above check.
+describe("a contract with no supplier, as migrated from the current Hub", () => {
+  it("is still shown on its tool and its instance", async () => {
+    const tool = await repos.tools.create(
+      { key: "migrated-tool", slug: "migrated-tool", name: "Migrated tool" },
+      actor,
+    );
+    const contract = await repos.contracts.create(
+      { toolId: tool.id, costModel: "Per seat" },
+      actor,
+    );
+    await repos.instances.create(
+      {
+        key: "migrated-tool",
+        slug: "migrated-tool",
+        name: "Migrated tool",
+        toolId: tool.id,
+        contractId: contract.id,
+        isPlaceholder: true,
+      },
+      actor,
+    );
+
+    const detail = await toolDetail("migrated-tool");
+    expect(detail.contracts).toEqual([
+      expect.objectContaining({ id: contract.id, supplierId: null, supplier: null }),
+    ]);
+    expect((await instanceDetail("migrated-tool")).contract).toMatchObject({
+      id: contract.id,
+      supplier: null,
+    });
   });
 });
