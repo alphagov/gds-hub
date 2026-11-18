@@ -111,6 +111,19 @@ describe("link rewriting", () => {
       assetPath: "/engineering/widgets/files/handbook.pdf",
     });
   });
+
+  it("keeps the query string and fragment on an asset link", () => {
+    expect(rewriteLink("/engineering/widgets/files/handbook.pdf#page=12", context)).toEqual({
+      kind: "asset",
+      href: "/hub-assets/engineering/widgets/files/handbook.pdf#page=12",
+      assetPath: "/engineering/widgets/files/handbook.pdf",
+    });
+    expect(rewriteLink("/images/icons.svg?v=2#warning", context)).toEqual({
+      kind: "asset",
+      href: "/hub-assets/images/icons.svg?v=2#warning",
+      assetPath: "/images/icons.svg",
+    });
+  });
 });
 
 describe("redirect targets", () => {

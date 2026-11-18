@@ -17,24 +17,57 @@ const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 const run = promisify(execFile);
 const logger = createJsonLogger({ level: "info", base: { script: "check:no-migration-data" } });
 
+const GITLINK_MODE = "160000";
+
+/** A file as the check sees it: text, or undefined for a binary or very large file. */
+function toRepoFile(file: string, bytes: Buffer): RepoFile {
+  const binary = bytes.length > MAX_TEXT_BYTES || bytes.includes(0);
+  return { path: file, content: binary ? undefined : bytes.toString("utf8") };
+}
+
+async function git(args: string[]): Promise<Buffer> {
+  const { stdout } = await run("git", args, {
+    cwd: REPO_ROOT,
+    encoding: "buffer",
+    maxBuffer: 64 * 1024 * 1024,
+  });
+  return stdout;
+}
+
+/**
+ * What would be committed (the staged version of each tracked file) and what
+ * is in the working tree. A file changed after staging is checked in both
+ * forms, so cleaning it up without staging the change doesn't hide it. A
+ * staged file that can't be read fails the check.
+ */
 async function repoFiles(): Promise<RepoFile[]> {
-  const { stdout } = await run(
-    "git",
-    ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
-    { cwd: REPO_ROOT, maxBuffer: 64 * 1024 * 1024 },
-  );
-  const paths = [...new Set(stdout.split("\0").filter((file) => file !== ""))];
   const files: RepoFile[] = [];
-  for (const file of paths) {
-    let bytes: Buffer;
+
+  const staged = (await git(["ls-files", "-z", "--stage"])).toString("utf8").split("\0");
+  const entries = new Map<string, string>();
+  for (const entry of staged) {
+    const match = /^(\d+) ([0-9a-f]+) \d\t(.+)$/s.exec(entry);
+    if (match === null || match[1] === GITLINK_MODE) continue;
+    entries.set(`${match[2]}\0${match[3]}`, match[3] ?? "");
+  }
+  for (const [key, file] of entries) {
+    const sha = key.slice(0, key.indexOf("\0"));
+    const blob = await git(["cat-file", "blob", sha]);
+    files.push(toRepoFile(file, blob));
     try {
-      bytes = await readFile(path.join(REPO_ROOT, file));
+      const current = await readFile(path.join(REPO_ROOT, file));
+      if (!current.equals(blob)) files.push(toRepoFile(file, current));
     } catch {
-      // Deleted from the working tree but still in the index.
-      continue;
+      // Deleted from the working tree. The staged version has been checked.
     }
-    const binary = bytes.length > MAX_TEXT_BYTES || bytes.includes(0);
-    files.push({ path: file, content: binary ? undefined : bytes.toString("utf8") });
+  }
+
+  const untracked = (await git(["ls-files", "-z", "--others", "--exclude-standard"]))
+    .toString("utf8")
+    .split("\0")
+    .filter((file) => file !== "");
+  for (const file of new Set(untracked)) {
+    files.push(toRepoFile(file, await readFile(path.join(REPO_ROOT, file))));
   }
   return files;
 }

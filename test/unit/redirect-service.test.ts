@@ -76,4 +76,28 @@ describe("finding where an old address has moved to", () => {
     expect(await service.newPathFor("/whats-new")).toBeUndefined();
     expect(await service.newPathFor("/loop")).toBeUndefined();
   });
+
+  it("never redirects an address to itself with a fragment added", async () => {
+    const { service } = lookupOf({ "/loop": "/loop#section", "/other/": "/other#top" });
+    expect(await service.newPathFor("/loop")).toBeUndefined();
+    expect(await service.newPathFor("/other")).toBeUndefined();
+  });
+
+  it("finds the redirect for a built index.html address through its directory", async () => {
+    const { service } = lookupOf({ "/engineering/widgets/": "/guidance/widgets" });
+    expect(await service.newPathFor("/engineering/widgets/index.html")).toBe("/guidance/widgets");
+  });
+
+  it("prefers an exact index.html redirect to the directory one", async () => {
+    const { service } = lookupOf({
+      "/a/index.html": "/exact",
+      "/a/": "/directory",
+    });
+    expect(await service.newPathFor("/a/index.html")).toBe("/exact");
+  });
+
+  it("sends an index.html address to its directory page, keeping the fragment", async () => {
+    const { service } = lookupOf({ "/a/": "/a/#top" });
+    expect(await service.newPathFor("/a/index.html")).toBe("/a/#top");
+  });
 });

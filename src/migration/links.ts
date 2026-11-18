@@ -122,7 +122,11 @@ export function rewriteLink(href: string, context: LinkContext): LinkResult {
 
   const oldPath = normaliseOldPath(url.pathname);
   if (ASSET_EXTENSION.test(oldPath)) {
-    return { kind: "asset", href: `${context.assetBasePath}${oldPath}`, assetPath: oldPath };
+    return {
+      kind: "asset",
+      href: `${context.assetBasePath}${oldPath}${url.search}${url.hash}`,
+      assetPath: oldPath,
+    };
   }
 
   const newPath = findNewPath(oldPath, context.pathMap);
