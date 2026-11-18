@@ -20,8 +20,7 @@ You need:
 
 - [Node.js 24](https://nodejs.org/) and npm
 - [Docker](https://docs.docker.com/get-docker/) with Docker Compose
-- Playwright installed locally
-`npx playwright install`
+- Playwright installed locally. `npx playwright install`
 
 Install the dependencies:
 
