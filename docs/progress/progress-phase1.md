@@ -39,11 +39,14 @@ public/javascripts/application.js  calls GOV.UK Frontend initAll()
 
 ## Layout block names
 
-| Layout        | Blocks                                                          | Reads from `page`      |
-| ------------- | --------------------------------------------------------------- | ---------------------- |
-| `base.njk`    | `breadcrumbs`, `content`, and any `govuk/template.njk` block    | `title`, `breadcrumbs` |
-| `content.njk` | `heading` (default h1 is `page.title`), `lead`, `body`, `aside` | `title`                |
-| `listing.njk` | `heading`, `intro`, `filters`, `list`, `emptyState`             | `title`, `items`       |
+| Layout          | Blocks                                                          | Reads from `page`      |
+| --------------- | --------------------------------------------------------------- | ---------------------- |
+| `base.njk`      | `breadcrumbs`, `content`, and any `govuk/template.njk` block    | `title`, `breadcrumbs` |
+| `content.njk`   | `heading` (default h1 is `page.title`), `lead`, `body`, `aside` | `title`                |
+| `listing.njk`   | `heading`, `intro`, `filters`, `list`, `emptyState`             | `title`, `items`       |
+| `catalogue.njk` | `heading` (adds `page.caption`), `lead`, `body`                 | `title`, `caption`     |
+
+Block overriding is how pages differ. Each page template in `views/pages/` extends one layout and overrides only the blocks it needs, for example `tools.njk` overrides `intro` and `emptyState` on `listing.njk`. The route still names its template (`renderer.render(res, "pages/tool.njk", model)`), so a layout is never chosen at request time. `test/unit/render.test.ts` renders small templates from `test/fixtures/views/` (added through the renderer's `extraViewPaths` option) that override blocks of each layout, and checks that the header, service navigation, banner and footer don't change.
 
 `base.njk` also fills these GOV.UK template blocks: `pageTitle`, `head` (stylesheet), `govukServiceNavigation`, `beforeContent` (phase banner and breadcrumbs) and `bodyEnd` (application script).
 
@@ -58,7 +61,7 @@ public/javascripts/application.js  calls GOV.UK Frontend initAll()
 
 1. If it's a new section, add it to `SECTIONS` in `src/site-map.ts`. The navigation, home page, placeholder route, unit tests and axe scan all pick it up.
 2. Add a view model interface to `src/view-models.ts` and register the template in `Views`, for example `"pages/tool.njk": ToolViewModel`.
-3. Create the template in `views/pages/`, extending `layouts/content.njk` or `layouts/listing.njk`. Use official `govuk*` macros only.
+3. Create the template in `views/pages/`, extending `layouts/content.njk`, `layouts/listing.njk` or `layouts/catalogue.njk` and overriding the blocks above. Use official `govuk*` macros only.
 4. In a router, build the view model and call `renderer.render(res, "pages/tool.njk", model).catch(next)`. To send an error page, call `next(new HttpError(404))`.
 5. Add the route to the `PAGES` list in `test/e2e/accessibility.spec.ts` if it isn't a section.
 
