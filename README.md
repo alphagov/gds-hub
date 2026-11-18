@@ -29,7 +29,7 @@ npm install
 
 ## Run the app with Docker
 
-This builds the app image and starts it with a PostgreSQL database:
+This builds the app image and starts two containers, one for the app and one for the PostgreSQL database (`db`):
 
 ```bash
 docker compose up -d
@@ -57,11 +57,7 @@ To stop everything, run `docker compose down`. Add `-v` to delete the database v
    cp .env.example .env
    ```
 
-2. Start docker
-
-   ```bash
-   docker compose up -d
-   ```
+2. Start the containers by following [Run the app with Docker](#run-the-app-with-docker).
 
 3. Load the environment variables
 
