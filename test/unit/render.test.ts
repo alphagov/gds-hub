@@ -1,3 +1,4 @@
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { serviceNavigation } from "../../src/lib/navigation.js";
 import { createRenderer, type LayoutModel, type Renderer } from "../../src/lib/render.js";
@@ -220,5 +221,53 @@ describe("createRenderer", () => {
         expect(html).toContain('class="govuk-grid-column-full"');
       }
     });
+  });
+});
+
+describe("overriding layout blocks", () => {
+  const fixtures = createRenderer({
+    extraViewPaths: [path.join(import.meta.dirname, "../fixtures/views")],
+  });
+
+  /** Renders a fixture template. The cast deliberately bypasses the check on template names. */
+  function renderFixture(name: string): Promise<string> {
+    return fixtures.renderToString(name as "pages/section.njk", toolsPage, layoutFor(tools.path));
+  }
+
+  /** Everything before <main> (header, service navigation, banner, breadcrumbs) and the footer. */
+  function surroundings(html: string): string[] {
+    const before = /^[\s\S]*?<main/.exec(html)?.[0] ?? "";
+    const footer = /<footer[\s\S]*?<\/footer>/.exec(html)?.[0] ?? "";
+    expect(before).toContain("govuk-service-navigation");
+    expect(footer).not.toBe("");
+    return [before, footer];
+  }
+
+  it("replaces the heading and list of a listing and leaves the rest of the page alone", async () => {
+    const html: string = await renderFixture("override-listing.njk");
+
+    expect(html).toContain("Overridden heading");
+    expect(html).toContain("Overridden list");
+    expect(html).not.toContain(toolsPage.title + "</h1>");
+    expect(html).not.toContain("Content will be added in a later phase.");
+    expect(surroundings(html)).toEqual(surroundings(await renderSection()));
+  });
+
+  it("replaces the heading, body and aside of a content page", async () => {
+    const html: string = await renderFixture("override-content.njk");
+
+    expect(html).toContain("Overridden heading");
+    expect(html).toContain("Overridden body");
+    expect(html).toContain("Overridden aside");
+    expect(surroundings(html)).toEqual(surroundings(await renderSection()));
+  });
+
+  it("keeps the default heading of a catalogue page when only the lead and body change", async () => {
+    const html: string = await renderFixture("override-catalogue.njk");
+
+    expect(html).toContain("Overridden lead");
+    expect(html).toContain("Overridden body");
+    expect(html).toContain(`<h1 class="govuk-heading-l">${toolsPage.title}</h1>`);
+    expect(surroundings(html)).toEqual(surroundings(await renderSection()));
   });
 });

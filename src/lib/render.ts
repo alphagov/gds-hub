@@ -30,12 +30,17 @@ export interface Renderer {
 export interface RendererOptions {
   /** Re-read templates on every render. For local development. */
   readonly noCache?: boolean;
+  /** Folders searched before the app's own views. For test-only templates. */
+  readonly extraViewPaths?: readonly string[];
 }
 
 export function createRenderer(options: RendererOptions = {}): Renderer {
-  const loader = new nunjucks.FileSystemLoader([VIEWS_DIR, GOVUK_FRONTEND_DIST], {
-    noCache: options.noCache ?? false,
-  });
+  const loader = new nunjucks.FileSystemLoader(
+    [...(options.extraViewPaths ?? []), VIEWS_DIR, GOVUK_FRONTEND_DIST],
+    {
+      noCache: options.noCache ?? false,
+    },
+  );
   const env = new nunjucks.Environment(loader, { autoescape: true });
 
   function renderToString<T extends ViewName>(
