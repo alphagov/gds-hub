@@ -46,9 +46,12 @@ docker compose up -d db
 
 ## Sandbox
 
-- No network access: never run npm install, npx package downloads, docker pull or git push.
-- Dependencies are installed before the session. If one is missing, stop and list it in the phase's docs/progress/progress-phase<N>.md.
-- Commit locally only; the developer pushes and opens pull requests.
+- The sandbox is the GDS Claude Policy Sandbox Kit plus this repo's mixin in .sbx/hub-dev. The developer starts it from the repo root with .sbx/claude-sandbox.sh, after docker compose up -d db (see README.md).
+- Node 24, a Linux node_modules and Chromium are installed when the sandbox is created. localhost:5432 is the developer's database, and DATABASE_URL is set as in CI.
+- Run lint, typecheck, test and test:e2e yourself, and fix failures before handing over. Before test:e2e on an empty database, run db:migrate and db:seed. Don't hand checks back to the developer unless one can't run in the sandbox; if so, say which and why in the phase's progress file.
+- The database is the developer's local one. Ask the developer before running db:reset.
+- Never run npm install, npx package downloads or add dependencies; the npm registry is blocked during the session. If one is missing, stop and list it in the phase's docs/progress/progress-phase<N>.md.
+- Never run docker pull or git push. Commit locally only; the developer pushes and opens pull requests.
 
 ## Working agreement
 
