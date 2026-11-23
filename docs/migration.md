@@ -69,11 +69,19 @@ Outside this repository, put:
 
 ### 2. Make an empty database for migrated data
 
-Keep migrated data in its own database, so the seeded database the e2e tests use stays as it is. With the docker compose database running:
+With the docker compose database running, and `DATABASE_URL` pointing at the local database you want to migrate into:
+
+```sh
+npm run db:reset:empty
+```
+
+This drops the app's tables and applies the migrations, without loading the synthetic seed. The loader refuses any database that has ever had the seed in it, so don't run `db:seed` or `db:reset` on this database first. It also deletes whatever is in the database now, including any seeded data the e2e tests use. Run `npm run db:reset` afterwards to get that back, if the database hasn't had migrated data loaded into it.
+
+To keep the seeded database as it is, use a separate database instead:
 
 ```sh
 docker compose exec db createdb -U gdshub gdshub_migration
-DATABASE_URL=postgres://gdshub:gdshub@localhost:5432/gdshub_migration npm run db:migrate
+DATABASE_URL=postgres://gdshub:gdshub@localhost:5432/gdshub_migration npm run db:reset:empty
 ```
 
 Change the port if your `DB_HOST_PORT` isn't 5432. For the rest of this section, set `DATABASE_URL` to the migration database, for example by putting it before each command, or in your shell.
@@ -126,7 +134,7 @@ Then run the app against the migration database (`DATABASE_URL=… npm run dev`)
 
 ### Starting again
 
-`db:reset` refuses a database with migrated data in it. To start again, drop the migration database and go back to step 2:
+`db:reset` and `db:reset:empty` both refuse a database with migrated data in it. To start again, drop the database and go back to step 2 (create it again with `createdb` before running `db:reset:empty`):
 
 ```sh
 docker compose exec db dropdb -U gdshub gdshub_migration

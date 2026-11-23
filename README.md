@@ -84,14 +84,15 @@ The app restarts when you change a file in `src/`. It runs at <http://localhost:
 
 `npm run db:reset` is all you need to get a local database ready for development. It applies the migrations and loads synthetic sample data (made-up values only). Run it again whenever you want to start from a clean, seeded database. It reads `DATABASE_URL` from `.env`.
 
-| Command               | What it does                                                      |
-| --------------------- | ----------------------------------------------------------------- |
-| `npm run db:reset`    | Drops the app's tables, applies the migrations and seeds the data |
-| `npm run db:generate` | Generates a new migration from changes to the Drizzle schema      |
-| `npm run db:migrate`  | Applies pending migrations only, without seeding or dropping      |
-| `npm run db:seed`     | Loads the synthetic sample data only                              |
+| Command                  | What it does                                                                |
+| ------------------------ | --------------------------------------------------------------------------- |
+| `npm run db:reset`       | Drops the app's tables, applies the migrations and seeds the data           |
+| `npm run db:reset:empty` | Drops the app's tables and applies the migrations, without seeding the data |
+| `npm run db:generate`    | Generates a new migration from changes to the Drizzle schema                |
+| `npm run db:migrate`     | Applies pending migrations only, without seeding or dropping                |
+| `npm run db:seed`        | Loads the synthetic sample data only                                        |
 
-`db:reset` and `db:seed` only run against a local database (`localhost`, `127.0.0.1`, `[::1]` or `db`). `db:reset` also checks what is in the database before it drops anything. It refuses if the database has tables this app doesn't create, imported data, or rows with no audit record of being created. If it refuses, run `docker compose down -v` to delete the database volume, then start the database again with `docker compose up -d db` and run `npm run db:reset`.
+`db:reset`, `db:reset:empty` and `db:seed` only run against a local database (`localhost`, `127.0.0.1`, `[::1]` or `db`). `db:reset` and `db:reset:empty` also check what is in the database before they drop anything. It refuses if the database has tables this app doesn't create, imported data, or rows with no audit record of being created. If it refuses, run `docker compose down -v` to delete the database volume, then start the database again with `docker compose up -d db` and run `npm run db:reset`.
 
 Migrations must be backward compatible (expand, then contract). After changing the schema, run `npm run db:generate` and commit the generated SQL.
 
@@ -99,7 +100,7 @@ Migrations must be backward compatible (expand, then contract). After changing t
 
 The migration loads the current Hub's built HTML and YAML data files into the database. See [docs/migration.md](docs/migration.md) for the steps, and [docs/migration-validation.md](docs/migration-validation.md) to check it works without the real files.
 
-- Use a separate, empty database for migrated data. The loader refuses any database that has ever been seeded, so seed data and migrated data never mix.
+- Use an empty database for migrated data: `npm run db:reset:empty` applies the migrations without the synthetic seed. The loader refuses any database that has ever been seeded, so seed data and migrated data never mix.
 - `npm run migrate:load` is a dry run unless you add `--apply`.
 - Never commit the inputs, the reports or any migrated data. `npm run check:no-migration-data` checks this before every commit and in CI.
 

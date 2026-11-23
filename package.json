@@ -21,6 +21,7 @@
     "db:migrate": "node --env-file-if-exists=.env --import tsx src/db/scripts/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env --import tsx src/db/scripts/seed.ts",
     "db:reset": "node --env-file-if-exists=.env --import tsx src/db/scripts/reset.ts",
+    "db:reset:empty": "node --env-file-if-exists=.env --import tsx src/db/scripts/reset.ts --no-seed",
     "migrate:inventory": "node --env-file-if-exists=.env --import tsx src/migration/scripts/inventory.ts",
     "migrate:load": "node --env-file-if-exists=.env --import tsx src/migration/scripts/load.ts",
     "migrate:verify": "node --env-file-if-exists=.env --import tsx src/migration/scripts/verify.ts",

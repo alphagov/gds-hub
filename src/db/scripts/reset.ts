@@ -3,6 +3,9 @@ import { assertLocalDatabase, dropAppObjects } from "../reset.js";
 import { seedDatabase } from "../seed/seed.js";
 import { runScript } from "./run-script.js";
 
+/** `--no-seed` leaves the database empty, ready for the data migration. */
+const seed = !process.argv.includes("--no-seed");
+
 await runScript("db:reset", async ({ config, db, logger }) => {
   assertLocalDatabase(config);
   logger.info(
@@ -11,7 +14,9 @@ await runScript("db:reset", async ({ config, db, logger }) => {
   await dropAppObjects(db);
   logger.info("applying migrations");
   await runMigrations(db);
-  logger.info("seeding synthetic data");
-  await seedDatabase(db);
+  if (seed) {
+    logger.info("seeding synthetic data");
+    await seedDatabase(db);
+  }
   logger.info("reset complete");
 });
