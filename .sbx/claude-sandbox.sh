@@ -22,9 +22,25 @@ if $recreate; then
   sbx rm -f "$name" 2>/dev/null || true
 fi
 
+# DATABASE_URL from the environment or .env overrides the mixin's default. The
+# file is read, not sourced, so nothing in it is executed.
+database_url="${DATABASE_URL:-}"
+if [ -z "$database_url" ] && [ -f "$root/.env" ]; then
+  database_url=$(sed -n 's/^DATABASE_URL=//p' "$root/.env" | tail -n 1 | sed "s/^[\"']//; s/[\"']\$//")
+fi
+
+db_args=""
+if [ -n "$database_url" ]; then
+  # The sandbox relays this port, so it must be the host's Postgres port.
+  db_port=$(printf '%s' "$database_url" | sed -n 's|^[a-z]*://[^/@]*@[^/:]*:\([0-9][0-9]*\).*|\1|p')
+  db_args="--kit-arg database_url=$database_url"
+  [ -n "$db_port" ] && db_args="$db_args --kit-arg db_port=$db_port"
+fi
+
 if ! sbx inspect "$name" >/dev/null 2>&1; then
+  # shellcheck disable=SC2086 # db_args is deliberately split into arguments.
   sbx create --name "$name" "$KIT" "$root" \
-    --kit "$root/.sbx/hub-dev" --kit-arg workspace="$root"
+    --kit "$root/.sbx/hub-dev" --kit-arg workspace="$root" $db_args
 fi
 
 # The base kit allows npm at runtime. Block it here, not in the mixin, where

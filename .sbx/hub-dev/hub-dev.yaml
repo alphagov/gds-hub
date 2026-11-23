@@ -20,6 +20,12 @@ args:
     default: postgres://gdshub:gdshub@localhost:5432/gdshub
     env: DATABASE_URL
     description: Database for the tests and db:* scripts (the same as CI).
+  db_port:
+    default: "5432"
+    pattern: "^[0-9]+$"
+    description: >-
+      Port of the host's Postgres, and of the relay in the sandbox. Must match
+      the port in database_url; the launcher sets both from .env.
 
 capabilities:
   # No runtime deny for registry.npmjs.org: in sbx 0.54.0 it also blocks the
@@ -40,7 +46,7 @@ capabilities:
         # The host's Postgres, via host.docker.internal. host-port@1 would
         # avoid this rule, but sbx 0.54.0 doesn't support it.
         allow:
-          - localhost:5432
+          - localhost:${{ kit.args.db_port }}
 
   # Keeps the Mac's node_modules untouched.
   - type: com.docker.sandbox/volume@1
@@ -85,7 +91,7 @@ capabilities:
       startup:
         # The app's local-database check (src/db/local-database.ts) only
         # accepts local hosts, so the tests need Postgres on localhost.
-        - description: Relay localhost:5432 to the host's Postgres
+        - description: Relay localhost to the host's Postgres
           user: agent
           background: true
           command: node /home/agent/.local/share/hub-dev/pg-relay.mjs
@@ -93,11 +99,12 @@ capabilities:
       files:
         - path: /home/agent/.local/share/hub-dev/pg-relay.mjs
           mode: "0644"
-          description: TCP relay from the sandbox's localhost:5432 to the host
+          description: TCP relay from the sandbox's localhost to the host's Postgres
           content: |
             import net from "node:net";
 
-            const target = { host: "host.docker.internal", port: 5432 };
+            const port = ${{ kit.args.db_port }};
+            const target = { host: "host.docker.internal", port };
 
             for (const host of ["127.0.0.1", "::1"]) {
               net
@@ -112,5 +119,5 @@ capabilities:
                   client.pipe(upstream).pipe(client);
                 })
                 .on("error", (error) => console.error(`pg relay on ${host}: ${error.message}`))
-                .listen(5432, host);
+                .listen(port, host);
             }
