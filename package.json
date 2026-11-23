@@ -28,7 +28,7 @@
     "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1167.0",
+    "@aws-sdk/client-s3": "^3.1172.0",
     "cheerio": "^1.2.0",
     "compression": "^1.8.2",
     "drizzle-orm": "^0.45.4",
