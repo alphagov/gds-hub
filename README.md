@@ -100,7 +100,8 @@ Migrations must be backward compatible (expand, then contract). After changing t
 
 The migration loads the current Hub's built HTML and YAML data files into the database. See [docs/migration.md](docs/migration.md) for the steps, and [docs/migration-validation.md](docs/migration-validation.md) to check it works without the real files.
 
-- Use an empty database for migrated data: `npm run db:reset:empty` applies the migrations without the synthetic seed. The loader refuses any database that has ever been seeded, so seed data and migrated data never mix.
+- Use an empty database for migrated data: `npm run db:reset:empty` applies the migrations without the synthetic seeds. The loader refuses any database that has ever been seeded, so seed data and migrated data never mix. Useful for running the data migrations locally. But for e2e tests at the moment you will need the synthetic data seeds.
+
 - `npm run migrate:load` is a dry run unless you add `--apply`.
 - Never commit the inputs, the reports or any migrated data. `npm run check:no-migration-data` checks this before every commit and in CI.
 
