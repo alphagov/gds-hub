@@ -197,7 +197,7 @@ jq '{passed, checked, problems, warnings, waitingForPhase6}' "$(latest verify)"
 - Exit code 0, and the log line `verify passed`.
 - `checked` is `{ "records": 52, "pages": 10, "redirects": 28 }`.
 - `problems` and `warnings` are empty.
-- `waitingForPhase6` lists the content pages, including `/policies/device-policy`, `/guidance/widgets` and `/pages/about`. Their pages are in the database, but their routes come in Phase 6.
+- `waitingForPhase6` lists the pages with no route yet, including `/whats-new/trying-out-paper-boats` and `/pages/about`. Their pages are in the database, but nothing serves them yet. `/policies/device-policy` and `/guidance/widgets` aren't listed, because they render.
 
 Verify started the app on a random local port and fetched every new page and every old address. Its log lines tagged `verify-app` are the app's own request logs.
 
@@ -228,7 +228,7 @@ DATABASE_URL=$FIXTURES_DB npm run dev
 | http://localhost:3000/business-units/skyward-directorate                                 | Its 2 teams                                                                                                    |
 | http://localhost:3000/tools/lantern-notes-wiki/                                          | **Redirects** to `/tools/lanternly`, the tool's old address                                                    |
 | http://localhost:3000/products_teams_and_services/skyward-directorate/paper-planes-team/ | **Redirects** to `/services/paper-planes`                                                                      |
-| http://localhost:3000/old-widgets.html                                                   | Redirects to `/guidance/widgets`, which shows page not found until Phase 6                                     |
+| http://localhost:3000/old-widgets.html                                                   | Redirects to `/guidance/widgets`, which shows the migrated widgets page                                        |
 
 To see a redirect without the browser following it:
 
@@ -367,7 +367,7 @@ The reports from this run name the current Hub's pages and keys. Keep them in `m
 | The fixture counts are different from this guide                                                      | Check `.env` has no `HUB_` or `MIGRATION_` settings, and that you used the `fixtures` function                                                                                |
 | `db:reset` refuses, saying the database has imported data                                             | It's refusing to drop migrated data, which is right. `.env` probably points at a migration database. Point it back at your usual one, or drop the migration database (part 8) |
 | `npm run dev` shows the seed data, not the migrated data                                              | `npm run dev` doesn't read `.env`. Put `DATABASE_URL=…` in front of it                                                                                                        |
-| A page at `/policies/…`, `/guidance/…`, `/whats-new/…` or `/pages/…` shows page not found             | Expected: content page routes come in Phase 6                                                                                                                                 |
+| A page at `/whats-new/…` or `/pages/…` shows page not found                                           | Expected: those routes aren't built yet (see `docs/backlog.md`). Policies and guidance render at `/policies/…` and `/guidance/…`                                              |
 
 ## 8. Clean up
 

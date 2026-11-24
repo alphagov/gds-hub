@@ -5,6 +5,7 @@
  * and test conditions.
  */
 
+import type { SafeHtml } from "./lib/markdown.js";
 import type { SectionKey } from "./site-map.js";
 
 export interface Breadcrumb {
@@ -197,6 +198,8 @@ export interface ProductTeamServiceViewModel extends CataloguePageViewModel {
   readonly rows: readonly SummaryRow[];
   readonly instances: readonly LinkItem[];
   readonly capabilities: readonly ProvidedThroughViewModel[];
+  /** The team's published service guides. */
+  readonly guidance: readonly LinkItem[];
 }
 
 export interface BusinessUnitViewModel extends CataloguePageViewModel {
@@ -210,6 +213,44 @@ export interface BusinessUnitViewModel extends CataloguePageViewModel {
 
 export interface SectionViewModel extends ListingViewModel {
   readonly description: string;
+}
+
+/** One page in a policies or guidance listing. */
+export interface ContentListItem {
+  readonly text: string;
+  readonly href: string;
+  readonly summary: string | null;
+  /** Formatted, or "Not recorded". */
+  readonly lastReviewed: string;
+}
+
+export interface ContentListingViewModel extends PageViewModel {
+  readonly description: string;
+  readonly items: readonly ContentListItem[];
+  /** Shown when there are no items. */
+  readonly emptyText: string;
+}
+
+/** An owner or contact: text, linked when href is set. */
+export interface ContentLabel {
+  readonly text: string;
+  readonly href: string | null;
+}
+
+/** A policy, guidance page or service guide. */
+export interface ContentPageViewModel extends PageViewModel {
+  /** Shown as the lead paragraph. */
+  readonly summary: string | null;
+  readonly owner: ContentLabel | null;
+  readonly contact: ContentLabel | null;
+  /** Formatted, or "Not recorded". */
+  readonly lastReviewed: string;
+  /** The accessible name of the list of sections, which can't be the left-hand "Contents". */
+  readonly onThisPageLabel: string;
+  /** Links to the body's h2 headings. */
+  readonly onThisPage: readonly LinkItem[];
+  /** The sanitised body, from src/lib/markdown.ts. */
+  readonly bodyHtml: SafeHtml;
 }
 
 export interface ErrorViewModel extends PageViewModel {
@@ -229,6 +270,8 @@ export interface Views {
   "pages/product-team-service.njk": ProductTeamServiceViewModel;
   "pages/business-unit.njk": BusinessUnitViewModel;
   "pages/section.njk": SectionViewModel;
+  "pages/content-listing.njk": ContentListingViewModel;
+  "pages/content-page.njk": ContentPageViewModel;
   "errors/403.njk": ErrorViewModel;
   "errors/404.njk": ErrorViewModel;
   "errors/500.njk": ErrorViewModel;

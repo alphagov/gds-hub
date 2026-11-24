@@ -139,6 +139,9 @@ jobs:
           npm run db:seed
 
       # playwright.config.ts builds and starts the server itself (webServer).
+      # It also starts a second one on a database it creates, gdshub_e2e_migrated,
+      # loaded from the synthetic migration fixtures. The Postgres user above can
+      # create databases, so this step needs nothing more.
       - run: npm run test:e2e
 
       # Artifacts and logs on a public repo can be downloaded by anyone signed in

@@ -7,8 +7,8 @@ import type { Logger } from "../lib/logger.js";
 import type { MigrationSnapshot, Repositories } from "../repositories/index.js";
 import { valuesEqual } from "../services/audit/changes.js";
 import { createCatalogueService } from "../services/catalogue/catalogue-service.js";
+import { createContentService } from "../services/content/content-service.js";
 import { createRedirectService } from "../services/redirects/redirect-service.js";
-import { SECTIONS } from "../site-map.js";
 import {
   GENERAL_PAGES_PATH,
   WHATS_NEW_PATH,
@@ -73,7 +73,7 @@ export interface VerifyOutcome {
   };
   readonly problems: readonly VerifyFinding[];
   readonly warnings: readonly VerifyFinding[];
-  /** Redirect targets for content pages, whose routes come in Phase 6. */
+  /** Redirect targets for content pages, whose routes aren't built yet: what's new posts and general pages. */
   readonly waitingForPhase6: readonly string[];
 }
 
@@ -92,13 +92,11 @@ export interface VerifyInput {
   readonly logger: Logger;
 }
 
-/** The sections content pages go in, which have no page routes until Phase 6. */
-const CONTENT_SECTIONS = [
-  SECTIONS.policies.path,
-  SECTIONS.guidance.path,
-  WHATS_NEW_PATH,
-  GENERAL_PAGES_PATH,
-];
+/**
+ * The sections content pages go in that have no page routes yet. Policies and
+ * guidance have them (Phase 6), so they're verified like any other page.
+ */
+const CONTENT_SECTIONS = [WHATS_NEW_PATH, GENERAL_PAGES_PATH];
 
 const RECORD_PAGE_ENTITIES: ReadonlySet<TargetEntity> = new Set<RecordPageEntity>([
   "tool",
@@ -170,6 +168,7 @@ async function startApp(input: VerifyInput): Promise<RunningApp> {
     config: input.config,
     logger: input.logger,
     catalogue: createCatalogueService(input.repositories),
+    content: createContentService(input.repositories),
     redirects: createRedirectService(input.repositories),
   });
   const server: Server = await new Promise((resolve, reject) => {
