@@ -1,0 +1,3 @@
+# Copy to terraform.tfvars (git-ignored). Run once in each account.
+environment       = "development" # or "production"
+state_bucket_name = "replace-with-a-hard-to-guess-name"
