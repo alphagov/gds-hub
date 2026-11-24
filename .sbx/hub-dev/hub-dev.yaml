@@ -1,0 +1,123 @@
+# Hub mixin for the GDS Claude Policy Sandbox Kit. See "Running Claude in the
+# sandbox" in README.md.
+
+schemaVersion: "3"
+kind: mixin
+displayName: GDS Hub dev tools
+description: >-
+  Linux node_modules, Chromium for Playwright and access to the host's
+  Postgres, so Claude can run the same checks as CI inside the GDS policy
+  sandbox.
+version: "0.1.0"
+
+args:
+  # sbx can't expand $WORKSPACE_DIR in a volume path, so the launcher passes it.
+  workspace:
+    required: true
+    pattern: "^/.*[^/]$"
+    description: Absolute path of the repo root on the host (pass "$PWD").
+  database_url:
+    default: postgres://gdshub:gdshub@localhost:5432/gdshub
+    env: DATABASE_URL
+    description: Database for the tests and db:* scripts (the same as CI).
+  db_port:
+    default: "5432"
+    pattern: "^[0-9]+$"
+    description: >-
+      Port of the host's Postgres, and of the relay in the sandbox. Must match
+      the port in database_url; the launcher sets both from .env.
+
+capabilities:
+  # No runtime deny for registry.npmjs.org: in sbx 0.54.0 it also blocks the
+  # install phase. The launcher adds it as a sandbox rule instead.
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      install:
+        allow:
+          - registry.npmjs.org
+          - cdn.playwright.dev
+          - playwright.download.prss.microsoft.com
+          # Chromium downloads redirect here (Chrome for Testing).
+          - storage.googleapis.com
+          # apt sources for playwright install-deps.
+          - deb.debian.org
+          - dhi.io
+      runtime:
+        # The host's Postgres, via host.docker.internal. host-port@1 would
+        # avoid this rule, but sbx 0.54.0 doesn't support it.
+        allow:
+          - localhost:${{ kit.args.db_port }}
+
+  # Keeps the Mac's node_modules untouched.
+  - type: com.docker.sandbox/volume@1
+    config:
+      path: "${{ kit.args.workspace }}/node_modules"
+      size: 2g
+
+  - type: com.docker.sandbox/lifecycle@1
+    config:
+      install:
+        # Stops before npm ci if the volume isn't mounted, so the host's
+        # node_modules is never overwritten.
+        - description: Check node_modules is the sandbox volume
+          user: "0"
+          env: [WORKSPACE_DIR]
+          command: >-
+            nm="$WORKSPACE_DIR/node_modules";
+            if [ "$WORKSPACE_DIR" != "${{ kit.args.workspace }}" ] ||
+               ! awk -v p="$nm" '$5 == p { found = 1 } END { exit !found }' /proc/self/mountinfo; then
+              echo "node_modules is not the sandbox volume. Start sbx from the repo root with --kit-arg workspace=\"\$PWD\"." >&2;
+              exit 1;
+            fi;
+            chown agent:agent "$nm"
+
+        - description: Install Linux dependencies
+          user: agent
+          env: [WORKSPACE_DIR]
+          command: cd "$WORKSPACE_DIR" && npm ci --ignore-scripts
+
+        - description: Install Chromium's system libraries
+          user: "0"
+          env: [WORKSPACE_DIR]
+          command: >-
+            cd "$WORKSPACE_DIR" && npx --no-install playwright install-deps chromium &&
+            rm -rf /var/lib/apt/lists/*
+
+        - description: Install Chromium for Playwright
+          user: agent
+          env: [WORKSPACE_DIR]
+          command: cd "$WORKSPACE_DIR" && npx --no-install playwright install chromium
+
+      startup:
+        # The app's local-database check (src/db/local-database.ts) only
+        # accepts local hosts, so the tests need Postgres on localhost.
+        - description: Relay localhost to the host's Postgres
+          user: agent
+          background: true
+          command: node /home/agent/.local/share/hub-dev/pg-relay.mjs
+
+      files:
+        - path: /home/agent/.local/share/hub-dev/pg-relay.mjs
+          mode: "0644"
+          description: TCP relay from the sandbox's localhost to the host's Postgres
+          content: |
+            import net from "node:net";
+
+            const port = ${{ kit.args.db_port }};
+            const target = { host: "host.docker.internal", port };
+
+            for (const host of ["127.0.0.1", "::1"]) {
+              net
+                .createServer((client) => {
+                  const upstream = net.connect(target);
+                  const close = () => {
+                    client.destroy();
+                    upstream.destroy();
+                  };
+                  client.on("error", close);
+                  upstream.on("error", close);
+                  client.pipe(upstream).pipe(client);
+                })
+                .on("error", (error) => console.error(`pg relay on ${host}: ${error.message}`))
+                .listen(port, host);
+            }

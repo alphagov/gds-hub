@@ -80,6 +80,37 @@ To stop everything, run `docker compose down`. Add `-v` to delete the database v
 
 The app restarts when you change a file in `src/`. It runs at <http://localhost:3000>.
 
+## Running Claude in the sandbox
+
+Claude Code runs in the [GDS Claude Policy Sandbox Kit](https://github.com/alphagov/gds-claude-sbx-kit) with this repo's mixin in `.sbx/hub-dev`, so it can run lint, typecheck and the tests itself.
+
+You need [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) (`sbx`) 0.54.0 or newer, set up as the kit's README describes: the Locked-Down policy, `kit.allowedSources` and the `bedrock-token` secret.
+
+1. Start the database on your Mac:
+
+   ```bash
+   docker compose up -d db
+   ```
+
+2. From the repo root, start Claude:
+
+   ```bash
+   .sbx/claude-sandbox.sh
+   ```
+
+   The first run creates a sandbox called `hub-dev`, which takes about a minute and a half. Later runs reattach to it. Use `.sbx/claude-sandbox.sh --recreate` to start again from scratch.
+
+When the sandbox is created, it installs:
+
+- a Linux `node_modules`, with `npm ci --ignore-scripts`. It's kept in a sandbox volume, so your Mac's `node_modules` isn't changed
+- Chromium and its system libraries, matching the Playwright version in `package-lock.json`
+
+Node 24 comes with the base kit. Inside the sandbox, `localhost:5432` is the database on your Mac, and `DATABASE_URL` is set to the same value as CI.
+
+The extra download sites are only open while the sandbox is being created. Once Claude is running, the sandbox can reach your Mac's port 5432, but it can't reach any site the base kit doesn't allow, or the npm registry. If a dependency is missing, add it on your Mac, then run `.sbx/claude-sandbox.sh --recreate`.
+
+The database is the one on your Mac, so the sandbox uses your local data. `npm run db:seed` refuses a database that already has data, and `npm run db:reset` refuses to drop data the seed didn't create.
+
 ## Database
 
 `npm run db:reset` is all you need to get a local database ready for development. It applies the migrations and loads synthetic sample data (made-up values only). Run it again whenever you want to start from a clean, seeded database. It reads `DATABASE_URL` from `.env`.
