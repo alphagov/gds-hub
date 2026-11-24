@@ -22,6 +22,10 @@ import {
   createCatalogueReadRepository,
   type CatalogueReadRepository,
 } from "./catalogue-read-repository.js";
+import {
+  createContentReadRepository,
+  type ContentReadRepository,
+} from "./content-read-repository.js";
 import { runInTransaction, type Executor } from "./executor.js";
 import { createMigrationRepository, type MigrationRepository } from "./migration-repository.js";
 import { createRedirectLookup, type RedirectLookup } from "./redirect-lookup-repository.js";
@@ -34,6 +38,7 @@ export { UnsafeDatabaseOperationError, assertLocalDatabase } from "../db/local-d
 export type { EntityType } from "../db/entity-types.js";
 export type { AuditAction, AuditEntry, AuditLogRepository } from "./audit-log-repository.js";
 export type { CatalogueReadRepository } from "./catalogue-read-repository.js";
+export type { ContentReadRepository } from "./content-read-repository.js";
 export {
   RepositoryError,
   type RepositoryErrorKind,
@@ -104,6 +109,8 @@ export interface Repositories extends TransactionRepositories {
    * of the database, which an open transaction can't give.
    */
   readonly catalogue: CatalogueReadRepository;
+  /** Published pages for the policies and guidance read pages. */
+  readonly content: ContentReadRepository;
   /** Finds where old addresses now go, for the read pages. */
   readonly redirectLookup: RedirectLookup;
 }
@@ -164,6 +171,7 @@ export function createRepositories(db: Database): Repositories {
   return {
     ...createTransactionRepositories(db),
     catalogue: createCatalogueReadRepository(db),
+    content: createContentReadRepository(db),
     redirectLookup: createRedirectLookup(db),
   };
 }

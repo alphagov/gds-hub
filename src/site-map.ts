@@ -89,8 +89,23 @@ export const CATALOGUE_PATHS = {
   vendor: (slug: string) => `/vendors/${encodeURIComponent(slug)}`,
 } as const satisfies Record<keyof typeof CATALOGUE_ROUTES, (identifier: string) => string>;
 
+/** Express route patterns for the pages under /policies and /guidance. */
+export const CONTENT_ROUTES = {
+  policy: "/policies/:slug",
+  guidance: "/guidance/:slug",
+} as const;
+
+/** The address of a policy, or of a guidance page or service guide, from its slug. */
+export const CONTENT_PATHS = {
+  policy: (slug: string) => `/policies/${encodeURIComponent(slug)}`,
+  guidance: (slug: string) => `/guidance/${encodeURIComponent(slug)}`,
+} as const satisfies Record<keyof typeof CONTENT_ROUTES, (slug: string) => string>;
+
 /** The accessible name of the left-hand contents navigation, and its toggle on small screens. */
 export const CONTENTS_LABEL = "Contents";
+
+/** The accessible name of the list of a content page's sections. Not "Contents", which is taken. */
+export const ON_THIS_PAGE_LABEL = "On this page";
 
 /** Public URLs of the static assets. */
 export const ASSET_PATHS = {

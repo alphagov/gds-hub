@@ -3,6 +3,7 @@ import type {
   capabilities,
   contracts,
   instances,
+  pages,
   productTeamServices,
   suppliers,
   tools,
@@ -18,6 +19,7 @@ export type SupplierRecord = typeof suppliers.$inferSelect;
 export type ContractRecord = typeof contracts.$inferSelect;
 export type InstanceRecord = typeof instances.$inferSelect;
 export type CapabilityRecord = typeof capabilities.$inferSelect;
+export type PageRecord = typeof pages.$inferSelect;
 export type ProductTeamServiceRecord = typeof productTeamServices.$inferSelect;
 export type BusinessUnitRecord = typeof businessUnits.$inferSelect;
 
@@ -163,6 +165,12 @@ export interface ProductTeamServiceDetail {
   readonly instances: readonly InstanceOfTool[];
   /** The capabilities provided to it, by capability name, then instance name. */
   readonly capabilities: readonly ProvidedThrough[];
+}
+
+/** A page and the product, team or service that owns it, if any. */
+export interface PageDetail {
+  readonly page: PageRecord;
+  readonly productTeamService: ProductTeamServiceSummary | null;
 }
 
 export interface BusinessUnitDetail {

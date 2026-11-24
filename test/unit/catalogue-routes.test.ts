@@ -4,6 +4,7 @@ import { silentLogger } from "../../src/lib/logger.js";
 import type { CatalogueService } from "../../src/services/catalogue/catalogue-service.js";
 import { ERROR_PAGES, HOME_PATH, SECTIONS } from "../../src/site-map.js";
 import { fakeCatalogue } from "./catalogue-fixtures.js";
+import { fakeContent } from "./content-fixtures.js";
 import { noRedirects, startApp, testConfig, type RunningApp } from "./helpers.js";
 
 let running: RunningApp | undefined;
@@ -15,7 +16,13 @@ afterEach(async () => {
 
 async function get(path: string, catalogue: CatalogueService = fakeCatalogue()): Promise<Response> {
   running = await startApp(
-    createApp({ config: testConfig, logger: silentLogger, catalogue, redirects: noRedirects }),
+    createApp({
+      config: testConfig,
+      logger: silentLogger,
+      catalogue,
+      content: fakeContent(),
+      redirects: noRedirects,
+    }),
   );
   return fetch(`${running.baseUrl}${path}`);
 }

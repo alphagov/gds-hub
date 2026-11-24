@@ -5,6 +5,7 @@ import { silentLogger } from "../../src/lib/logger.js";
 import type { RedirectService } from "../../src/services/redirects/redirect-service.js";
 import { ERROR_PAGES, TEST_ROUTES } from "../../src/site-map.js";
 import { fakeCatalogue } from "./catalogue-fixtures.js";
+import { fakeContent } from "./content-fixtures.js";
 import { startApp, testConfig, type RunningApp } from "./helpers.js";
 
 let running: RunningApp | undefined;
@@ -32,7 +33,13 @@ async function request(
   method = "GET",
 ): Promise<Response> {
   running = await startApp(
-    createApp({ config: testConfig, logger: silentLogger, catalogue: fakeCatalogue(), redirects }),
+    createApp({
+      config: testConfig,
+      logger: silentLogger,
+      catalogue: fakeCatalogue(),
+      content: fakeContent(),
+      redirects,
+    }),
   );
   return fetch(`${running.baseUrl}${path}`, { method, redirect: "manual" });
 }

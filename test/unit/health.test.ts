@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createApp } from "../../src/app.js";
 import { silentLogger } from "../../src/lib/logger.js";
 import { fakeCatalogue } from "./catalogue-fixtures.js";
+import { fakeContent } from "./content-fixtures.js";
 import { noRedirects, startApp, testConfig, type RunningApp } from "./helpers.js";
 
 describe("GET /health", () => {
@@ -13,6 +14,7 @@ describe("GET /health", () => {
         config: testConfig,
         logger: silentLogger,
         catalogue: fakeCatalogue(),
+        content: fakeContent(),
         redirects: noRedirects,
       }),
     );

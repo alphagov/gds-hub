@@ -18,6 +18,12 @@ function databaseUrl(): string {
 
 const baseURL = `http://localhost:${PORT}`;
 
+// A second app, on a database loaded from the synthetic migration fixtures,
+// for the tests of migrated content (see test/e2e/support/serve-migrated.ts).
+const MIGRATED_PORT = Number(process.env.E2E_MIGRATED_PORT ?? 3101);
+const migratedBaseURL = `http://localhost:${MIGRATED_PORT}`;
+const MIGRATED_SPECS = /migrated-.*\.spec\.ts/;
+
 export default defineConfig({
   testDir: "test/e2e",
   forbidOnly: Boolean(process.env.CI),
@@ -29,24 +35,53 @@ export default defineConfig({
   // run, so the accessibility spec scans the no-JavaScript version of each
   // page itself (by blocking the page's scripts) and only runs in "chromium".
   projects: [
-    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] }, testIgnore: MIGRATED_SPECS },
     {
       name: "chromium-no-js",
       use: { ...devices["Desktop Chrome"], javaScriptEnabled: false },
-      testIgnore: "accessibility.spec.ts",
+      testIgnore: ["accessibility.spec.ts", MIGRATED_SPECS],
+    },
+    // The migrated content tests run with and without JavaScript, against the
+    // second app. As in the first app, axe only runs with JavaScript.
+    {
+      name: "migrated",
+      use: { ...devices["Desktop Chrome"], baseURL: migratedBaseURL },
+      testMatch: MIGRATED_SPECS,
+    },
+    {
+      name: "migrated-no-js",
+      use: { ...devices["Desktop Chrome"], baseURL: migratedBaseURL, javaScriptEnabled: false },
+      testMatch: MIGRATED_SPECS,
+      testIgnore: "migrated-accessibility.spec.ts",
     },
   ],
-  webServer: {
-    command: "npm run build && npm start",
-    url: `${baseURL}/health`,
-    reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
-    env: {
-      NODE_ENV: "test",
-      PORT: String(PORT),
-      LOG_LEVEL: "warn",
-      APP_VERSION: "e2e",
-      DATABASE_URL: databaseUrl(),
+  webServer: [
+    {
+      command: "npm run build && npm start",
+      url: `${baseURL}/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 60_000,
+      env: {
+        NODE_ENV: "test",
+        PORT: String(PORT),
+        LOG_LEVEL: "warn",
+        APP_VERSION: "e2e",
+        DATABASE_URL: databaseUrl(),
+      },
     },
-  },
+    {
+      // Playwright starts the servers in order, so the first has built the app.
+      command: "node --import tsx test/e2e/support/serve-migrated.ts",
+      url: `${migratedBaseURL}/health`,
+      reuseExistingServer: !process.env.CI,
+      timeout: 120_000,
+      env: {
+        NODE_ENV: "test",
+        PORT: String(MIGRATED_PORT),
+        LOG_LEVEL: "warn",
+        APP_VERSION: "e2e",
+        DATABASE_URL: databaseUrl(),
+      },
+    },
+  ],
 });

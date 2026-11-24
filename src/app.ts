@@ -11,10 +11,12 @@ import { requestId } from "./middleware/request-id.js";
 import { requestLogger } from "./middleware/request-logger.js";
 import { assetsRouter } from "./routes/assets.js";
 import { catalogueRouter } from "./routes/catalogue.js";
+import { contentRouter } from "./routes/content.js";
 import { healthRouter } from "./routes/health.js";
 import { pagesRouter } from "./routes/pages.js";
 import { testOnlyRouter } from "./routes/test-only.js";
 import type { CatalogueService } from "./services/catalogue/catalogue-service.js";
+import type { ContentService } from "./services/content/content-service.js";
 import type { RedirectService } from "./services/redirects/redirect-service.js";
 
 export interface AppDependencies {
@@ -22,12 +24,20 @@ export interface AppDependencies {
   logger: Logger;
   /** What the read pages show. server.ts builds it from the repositories; tests pass a fake. */
   catalogue: CatalogueService;
+  /** The published policies and guidance. server.ts builds it from the repositories; tests pass a fake. */
+  content: ContentService;
   /** Where old addresses now go. server.ts builds it from the repositories; tests pass a fake. */
   redirects: RedirectService;
 }
 
 /** Builds the Express app. Does not start listening. */
-export function createApp({ config, logger, catalogue, redirects }: AppDependencies): Express {
+export function createApp({
+  config,
+  logger,
+  catalogue,
+  content,
+  redirects,
+}: AppDependencies): Express {
   const app = express();
   const renderer = createRenderer({ noCache: config.nodeEnv === "development" });
 
@@ -51,7 +61,8 @@ export function createApp({ config, logger, catalogue, redirects }: AppDependenc
 
   app.use(assetsRouter());
   app.use(healthRouter(config.version));
-  app.use(catalogueRouter(renderer, catalogue));
+  app.use(catalogueRouter(renderer, catalogue, content));
+  app.use(contentRouter(renderer, catalogue, content));
   app.use(pagesRouter(renderer, catalogue));
   if (config.nodeEnv === "test") {
     app.use(testOnlyRouter());
