@@ -69,3 +69,4 @@ crash.log
 # Claude
 /.claude
 infrastructure/terraform/bootstrap/backend.tf.off
+infrastructure-plan.md
