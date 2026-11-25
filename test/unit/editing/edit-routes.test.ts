@@ -1,3 +1,4 @@
+import * as cheerio from "cheerio";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, type AppDependencies } from "../../../src/app.js";
 import { type EditorIdentityProvider } from "../../../src/editing/editor-identity.js";
@@ -87,10 +88,8 @@ async function post(
 }
 
 function headingOf(html: string): string | undefined {
-  return /<h1[^>]*>([\s\S]*?)<\/h1>/
-    .exec(html)?.[1]
-    ?.replace(/<[^>]+>/g, "")
-    .trim();
+  const heading = cheerio.load(html)("h1").first();
+  return heading.length === 0 ? undefined : heading.text().trim();
 }
 
 const VALID_VENDOR = { slug: "compass-co", name: "Compass Co", description: "", url: "" };
