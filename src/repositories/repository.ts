@@ -46,6 +46,12 @@ export type RecordChanges<T extends AuditedTable> = Partial<NewRecord<T>>;
 export interface WriteOptions {
   /** A short description of the change, stored in the audit entry. */
   readonly changeSummary?: string | undefined;
+  /**
+   * For an update: when the caller last read the record. If the record has
+   * changed since, even in a way that would leave nothing to change here, the
+   * update is refused with RepositoryError("stale") and nothing is written.
+   */
+  readonly expectedUpdatedAt?: Date | undefined;
 }
 
 export interface ListOptions {
@@ -70,7 +76,8 @@ export interface BaseRepository<T extends AuditedTable> {
   /**
    * Changes a record and adds an "update" audit entry. If nothing would
    * change, nothing is written: no audit entry, and updated_at stays the same.
-   * Throws RepositoryError("not_found") if there is no such record.
+   * Throws RepositoryError("not_found") if there is no such record, or
+   * "stale" if `options.expectedUpdatedAt` is given and doesn't match.
    */
   update(
     id: number,
@@ -337,6 +344,12 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
       try {
         return await runInTransaction(executor, async (tx) => {
           const before = await lockRow(tx, id);
+          if (
+            options.expectedUpdatedAt !== undefined &&
+            !valuesEqual(before.updatedAt, options.expectedUpdatedAt)
+          ) {
+            throw new RepositoryError("stale", entityType);
+          }
           const requested = Object.keys(input).filter(
             (field) => !valuesEqual(before[field], input[field]),
           );

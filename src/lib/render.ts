@@ -1,5 +1,6 @@
 import type { Response } from "express";
 import nunjucks from "nunjucks";
+import { TEST_MODE_WARNING } from "../editing/test-mode.js";
 import { GOVUK_FRONTEND_DIST, VIEWS_DIR } from "../paths.js";
 import { ASSET_PATHS, documentTitle, HOME_PATH, SERVICE_NAME } from "../site-map.js";
 import type { ViewName, Views } from "../view-models.js";
@@ -9,6 +10,8 @@ import { serviceNavigation, type NavigationItem } from "./navigation.js";
 export interface LayoutModel {
   readonly cspNonce: string;
   readonly navigation: readonly NavigationItem[];
+  /** Shown above the page's content on every page while the editor is unverified. */
+  readonly editNotice?: string;
 }
 
 export interface Renderer {
@@ -56,8 +59,9 @@ export function createRenderer(options: RendererOptions = {}): Renderer {
       layout: {
         serviceName: SERVICE_NAME,
         homePath: HOME_PATH,
-        documentTitle: documentTitle(page.title),
+        documentTitle: documentTitle(page.title, page.hasError === true),
         navigation: layout.navigation,
+        editNotice: layout.editNotice,
         assets: ASSET_PATHS,
       },
       page,
@@ -79,6 +83,7 @@ export function createRenderer(options: RendererOptions = {}): Renderer {
     const html = await renderToString(template, page, {
       cspNonce: res.locals.cspNonce,
       navigation: serviceNavigation(res.req.path, page.section),
+      ...(res.locals.editor?.verified === false ? { editNotice: TEST_MODE_WARNING } : {}),
     });
     res.status(status).type("html").send(html);
   }

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
+const EDIT_MODES = ["off", "test"] as const;
 
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -8,9 +9,16 @@ const configSchema = z.object({
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
   APP_VERSION: z.string().min(1).default("dev"),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  EDIT_MODE: z.enum(EDIT_MODES).default("off"),
 });
 
 export type LogLevel = (typeof LOG_LEVELS)[number];
+
+/**
+ * Whether people can edit in the browser. "test" switches on editing without
+ * checking who is signed in, for releases before sign-in is delivered.
+ */
+export type EditMode = (typeof EDIT_MODES)[number];
 
 export interface Config {
   readonly nodeEnv: "development" | "test" | "production";
@@ -18,6 +26,7 @@ export interface Config {
   readonly logLevel: LogLevel;
   readonly version: string;
   readonly databaseUrl: string;
+  readonly editMode: EditMode;
 }
 
 export class ConfigError extends Error {
@@ -49,5 +58,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     logLevel: data.LOG_LEVEL,
     version: data.APP_VERSION,
     databaseUrl: data.DATABASE_URL,
+    editMode: data.EDIT_MODE,
   });
 }

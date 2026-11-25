@@ -13,6 +13,7 @@
 
 {% from "govuk/components/breadcrumbs/macro.njk" import govukBreadcrumbs %}
 {% from "govuk/components/generic-header/macro.njk" import govukGenericHeader %}
+{% from "govuk/components/notification-banner/macro.njk" import govukNotificationBanner %}
 {% from "govuk/components/phase-banner/macro.njk" import govukPhaseBanner %}
 {% from "govuk/components/service-navigation/macro.njk" import govukServiceNavigation %}
 
@@ -59,6 +60,13 @@
 #}
 {% block content %}
   {% set hasContents = page.contents and page.contents.groups | length %}
+  {#
+    Shown while the editor is not verified (layout.editNotice), on every page
+    they see, including error pages.
+  #}
+  {% if layout.editNotice %}
+    {{ govukNotificationBanner({ text: layout.editNotice }) }}
+  {% endif %}
   <div class="govuk-grid-row">
     {% if hasContents %}
       <div class="govuk-grid-column-one-quarter-from-desktop">

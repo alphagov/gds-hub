@@ -1,0 +1,15 @@
+{# What an editing page says about the last change: a success banner, or the problems with it. #}
+{% from "govuk/components/error-summary/macro.njk" import govukErrorSummary %}
+{% from "govuk/components/notification-banner/macro.njk" import govukNotificationBanner %}
+
+{% macro errorSummary(errors) %}
+  {% if errors | length %}
+    {{ govukErrorSummary({ titleText: "There is a problem", errorList: errors }) }}
+  {% endif %}
+{% endmacro %}
+
+{% macro successBanner(text) %}
+  {% if text %}
+    {{ govukNotificationBanner({ type: "success", text: text }) }}
+  {% endif %}
+{% endmacro %}

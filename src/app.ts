@@ -2,6 +2,7 @@ import compression from "compression";
 import express, { type Express, type Response } from "express";
 import helmet from "helmet";
 import type { Config } from "./config.js";
+import type { EditorIdentityProvider } from "./editing/editor-identity.js";
 import type { Logger } from "./lib/logger.js";
 import { createRenderer } from "./lib/render.js";
 import { cspNonce } from "./middleware/csp-nonce.js";
@@ -12,10 +13,12 @@ import { requestLogger } from "./middleware/request-logger.js";
 import { assetsRouter } from "./routes/assets.js";
 import { catalogueRouter } from "./routes/catalogue.js";
 import { contentRouter } from "./routes/content.js";
+import { editRouter } from "./routes/edit.js";
 import { healthRouter } from "./routes/health.js";
 import { pagesRouter } from "./routes/pages.js";
 import { testOnlyRouter } from "./routes/test-only.js";
 import type { CatalogueService } from "./services/catalogue/catalogue-service.js";
+import type { EditService } from "./services/editing/edit-service.js";
 import type { ContentService } from "./services/content/content-service.js";
 import type { RedirectService } from "./services/redirects/redirect-service.js";
 
@@ -28,6 +31,16 @@ export interface AppDependencies {
   content: ContentService;
   /** Where old addresses now go. server.ts builds it from the repositories; tests pass a fake. */
   redirects: RedirectService;
+  /**
+   * Editing in the browser. Leave it out to switch editing off, so every
+   * /edit address is page not found. server.ts passes it only when EDIT_MODE
+   * switches editing on.
+   */
+  editing?: {
+    /** Says who is editing. Test mode gives an unverified actor; a real provider verifies one. */
+    identity: EditorIdentityProvider;
+    service: EditService;
+  };
 }
 
 /** Builds the Express app. Does not start listening. */
@@ -37,6 +50,7 @@ export function createApp({
   catalogue,
   content,
   redirects,
+  editing,
 }: AppDependencies): Express {
   const app = express();
   const renderer = createRenderer({ noCache: config.nodeEnv === "development" });
@@ -64,6 +78,9 @@ export function createApp({
   app.use(catalogueRouter(renderer, catalogue, content));
   app.use(contentRouter(renderer, catalogue, content));
   app.use(pagesRouter(renderer, catalogue));
+  if (editing !== undefined) {
+    app.use(editRouter(renderer, editing.identity, editing.service));
+  }
   if (config.nodeEnv === "test") {
     app.use(testOnlyRouter());
   }

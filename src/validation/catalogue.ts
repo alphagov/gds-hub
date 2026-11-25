@@ -84,6 +84,15 @@ const weight = z.number().int().nullable();
 // The fields of each record, as plain shapes so callers can add their own
 // fields (for example the migration's references by key) and keep strictness.
 
+export const vendorFields = {
+  slug: keySchema,
+  name,
+  description: optionalText,
+  url: httpUrlSchema.nullable(),
+  supportContact: optionalText,
+  dataProtectionContact: optionalText,
+};
+
 export const toolFields = {
   key: keySchema,
   slug: keySchema,

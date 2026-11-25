@@ -145,6 +145,7 @@ All configuration comes from environment variables. The app checks them when it 
 | `LOG_LEVEL`    | `info`        | `debug`, `info`, `warn` or `error`                          |
 | `APP_VERSION`  | `dev`         | Version reported by `/health`                               |
 | `DATABASE_URL` | none          | Required. A `postgres://` or `postgresql://` connection URL |
+| `EDIT_MODE`    | `off`         | `off` or `test`. See [Editing](#editing-in-test-mode)       |
 
 Docker Compose also reads these from `.env`:
 
@@ -154,6 +155,12 @@ Docker Compose also reads these from `.env`:
 | `DB_HOST_PORT`  | `5432`  | Port on your machine that serves PostgreSQL |
 
 Never commit `.env` or any real credentials. In AWS, secrets come from Secrets Manager.
+
+## Editing in test mode
+
+Editing in the browser is off by default: every `/edit` address gives page not found. Set `EDIT_MODE=test` to switch it on without sign-in. Anyone who can reach the app can then add, change and delete pages, tools, instances, vendors and services. Every edit page says so, and every change is recorded in the audit log as `system:unauthenticated_test_mode`.
+
+Use it only where access is already limited, such as behind the WAF IP allow-list, until editors are verified. Any other value of `EDIT_MODE` stops the app starting. To add an editable kind of record, or to replace test mode with a provider that verifies the sign-in token, see [docs/editing.md](docs/editing.md).
 
 ## Scripts
 
@@ -186,6 +193,7 @@ src/
   app.ts          builds the Express app (does not start a server)
   server.ts       loads config, starts the server and handles shutdown
   config.ts       reads and validates environment variables
+  editing/        the editing forms: which records can be edited, form parsing and who is editing
   db/             database schema, seed data and the db:* scripts
   migration/      the inventory, load and verify scripts for the current Hub's data
   lib/            shared code, such as the logger

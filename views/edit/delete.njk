@@ -1,0 +1,24 @@
+{# Asks for confirmation before a record is deleted. Nothing is deleted by a link. #}
+{% extends "layouts/catalogue.njk" %}
+{% from "govuk/components/button/macro.njk" import govukButton %}
+{% from "partials/edit-notices.njk" import errorSummary %}
+
+{% block heading %}
+  {{ errorSummary(page.errors) }}
+  {{ super() }}
+{% endblock %}
+
+{% block body %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      <p class="govuk-body">This can’t be undone from this page. The deletion is recorded in the audit log.</p>
+
+      <form method="post" action="{{ page.action }}" novalidate>
+        <div class="govuk-button-group">
+          {{ govukButton({ text: "Delete", classes: "govuk-button--warning", preventDoubleClick: true }) }}
+          <a class="govuk-link" href="{{ page.cancel.href }}">{{ page.cancel.text }}</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

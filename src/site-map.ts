@@ -133,7 +133,11 @@ export const ERROR_PAGES = {
 
 export type ErrorStatus = keyof typeof ERROR_PAGES;
 
-/** The text of the HTML <title>: the page title followed by the service name. */
-export function documentTitle(pageTitle: string): string {
-  return pageTitle === SERVICE_NAME ? SERVICE_NAME : `${pageTitle} - ${SERVICE_NAME}`;
+/**
+ * The text of the HTML <title>: the page title followed by the service name.
+ * A page that shows an error summary starts with "Error: ".
+ */
+export function documentTitle(pageTitle: string, hasError = false): string {
+  const title = pageTitle === SERVICE_NAME ? SERVICE_NAME : `${pageTitle} - ${SERVICE_NAME}`;
+  return hasError ? `Error: ${title}` : title;
 }
