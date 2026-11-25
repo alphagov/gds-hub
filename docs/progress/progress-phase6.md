@@ -1,6 +1,6 @@
 # Phase 6: Content pages (policies and service guidance)
 
-**Status:** code complete on 2026-11-24. Lint, typecheck, Vitest (865 tests) and Playwright (130 tests, in the sandbox) pass, and `check:no-migration-data` passes. The tests were written first and agreed with the developer.
+**Status:** code complete on 2026-11-24. Lint, typecheck, Vitest and Playwright (in the sandbox) pass, and `check:no-migration-data` passes. The tests were written first and agreed with the developer.
 
 ## What was built
 
@@ -27,8 +27,8 @@ renderMarkdown(markdown: string): { html: SafeHtml; headings: { id: string; text
 ```
 
 1. `marked` (GitHub-flavoured, raw HTML allowed because migrated pages keep some, such as tables).
-2. `sanitize-html` with an allow-list: headings, paragraphs, lists, links, images, tables, `pre`, `code`, `blockquote`, `strong`, `em`, `hr`, `br`. Everything else is dropped (including `script`, `style`, `iframe`, `form`, `svg`, `math` and comments). Every `class`, `id`, `style` and `on*` attribute is removed. Links keep `http`, `https`, `mailto` and relative addresses. Image `src` keeps `https` and relative addresses.
-3. A `cheerio` pass over the sanitised output only, adding GOV.UK classes (h1 `govuk-heading-l`, h2 `-m`, h3 and below `-s`, `govuk-body`, `govuk-list--bullet` and `--number`, `govuk-link`, `govuk-table__*`, `govuk-section-break`) and kebab-case ids to h2 and h3 headings. Duplicate ids are numbered (`scope`, `scope-2`), and `main-content` and `skip-link` are never used. `headings` lists the h2s.
+2. `sanitize-html` with an allow-list: headings, paragraphs, lists (an `ol` keeps a whole-number `start`), links, images, tables (with `caption`, and `scope`, `colspan` and `rowspan` on cells), definition lists, `details` and `summary`, `pre`, `code`, `blockquote`, `strong`, `em`, `del`, `sub`, `sup`, `kbd`, `hr`, `br`. Everything else is dropped (including `script`, `style`, `iframe`, `form`, `svg`, `math` and comments). Every `class`, `id`, `style` and `on*` attribute is removed. Links keep `http`, `https`, `mailto`, `tel` and relative addresses. Image `src` keeps `https` and relative addresses.
+3. A `cheerio` pass over the sanitised output only. It unwraps a link left with no address into plain text, removes an image left with no source and a heading with no text, and makes a body h1 an h2 (the page has its own). It adds `scope="col"` to the header cells of a markdown table, GOV.UK classes (h2 `govuk-heading-m`, h3 and below `-s`, `govuk-body`, `govuk-list--bullet` and `--number`, `govuk-link`, `govuk-table__*`, `govuk-section-break`) and kebab-case ids to every heading (apostrophes are dropped, so "What's new" is `whats-new`; this is the usual convention, and I haven't confirmed it against the old Hub). Duplicate ids are numbered (`scope`, `scope-2`), and `main-content` and `skip-link` are never used. `headings` lists only the h2s, for the on-page contents.
 
 `SafeHtml` is a branded type. Only this module creates one (a test checks), and templates output it in one place, `views/partials/rendered-markdown.njk` (a test fails if `| safe` appears in any other template). Pass `page.bodyHtml` to the `renderedMarkdown` macro.
 
@@ -57,4 +57,4 @@ renderMarkdown(markdown: string): { html: SafeHtml; headings: { id: string; text
 
 ## Follow-ups
 
-Logged in `docs/backlog.md`: the `/whats-new` and `/pages` routes and a `/whats-new` listing, markdown for instance text fields, renaming `waitingForPhase6`, and an h1 in a page body (the migration removes it, but content written in the browser could add one). Serving the old Hub's images was already there.
+Logged in `docs/backlog.md`: the `/whats-new` and `/pages` routes and a `/whats-new` listing, markdown for instance text fields, renaming `waitingForPhase6`. Serving the old Hub's images was already there.

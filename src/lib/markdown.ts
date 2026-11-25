@@ -52,6 +52,16 @@ const ALLOWED_TAGS = [
   "blockquote",
   "strong",
   "em",
+  "del",
+  "sub",
+  "sup",
+  "kbd",
+  "dl",
+  "dt",
+  "dd",
+  "caption",
+  "details",
+  "summary",
   "hr",
   "br",
 ];
@@ -64,10 +74,11 @@ const SANITISE_OPTIONS: sanitizeHtml.IOptions = {
     // A continued procedure can start above 1. The value is checked below.
     ol: ["start"],
     img: ["src", "alt"],
-    th: ["colspan", "rowspan"],
+    // scope ties a header to its row, column or group, which complex tables need.
+    th: [{ name: "scope", values: ["row", "col", "rowgroup", "colgroup"] }, "colspan", "rowspan"],
     td: ["colspan", "rowspan"],
   },
-  allowedSchemes: ["http", "https", "mailto"],
+  allowedSchemes: ["http", "https", "mailto", "tel"],
   allowedSchemesByTag: { img: ["https"] },
   allowProtocolRelative: false,
 };
@@ -76,7 +87,6 @@ const SANITISE_OPTIONS: sanitizeHtml.IOptions = {
 const RESERVED_IDS: ReadonlySet<string> = new Set(["main-content", "skip-link"]);
 
 const HEADING_CLASSES: Readonly<Record<string, string>> = {
-  h1: "govuk-heading-l",
   h2: "govuk-heading-m",
   h3: "govuk-heading-s",
   h4: "govuk-heading-s",
@@ -103,6 +113,8 @@ const CLASSES: Readonly<Record<string, string>> = {
 function slugify(text: string): string {
   const slug = text
     .toLowerCase()
+    // Apostrophes are dropped, not turned into hyphens: "What's new" is "whats-new".
+    .replace(/['\u2019]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
   return slug === "" ? "section" : slug;
@@ -118,9 +130,30 @@ export function renderMarkdown(markdown: string): RenderedMarkdown {
   const sanitised = sanitizeHtml(parsed, SANITISE_OPTIONS);
   const $ = cheerio.load(sanitised, null, false);
 
+  // The sanitiser removes an address it doesn't allow but leaves the element:
+  // a link nobody can follow and an image that can't load. Keep a link's text and drop the image.
+  $("a:not([href])").each((_, element) => {
+    $(element).replaceWith($(element).contents());
+  });
+  $("img:not([src])").remove();
+
+  // The page has its own h1, so a heading 1 in the body becomes a heading 2.
+  $("h1").each((_, element) => {
+    element.tagName = "h2";
+  });
+
+  // A heading with no text would be an empty link in "On this page".
+  $("h2, h3, h4, h5, h6").each((_, element) => {
+    const heading = $(element);
+    if (heading.text().trim() === "" && heading.find("img").length === 0) heading.remove();
+  });
+
   for (const [tag, classes] of Object.entries(CLASSES)) {
     $(tag).addClass(classes);
   }
+
+  // Header cells of a markdown table, which has no way to say, are column headers.
+  $("thead th:not([scope])").attr("scope", "col");
 
   // The sanitiser can't check a value, so keep a list's start only if it is a small whole number.
   $("ol[start]").each((_, element) => {
@@ -128,9 +161,12 @@ export function renderMarkdown(markdown: string): RenderedMarkdown {
     if (!/^\d{1,6}$/.test(list.attr("start") ?? "")) list.removeAttr("start");
   });
 
+  // The sanitiser leaves an empty scope where the value wasn't allowed.
+  $('th[scope=""]').removeAttr("scope");
+
   const used = new Set<string>(RESERVED_IDS);
   const headings: RenderedHeading[] = [];
-  $("h2, h3").each((_, element) => {
+  $("h2, h3, h4, h5, h6").each((_, element) => {
     const heading = $(element);
     const text = heading.text().replace(/\s+/g, " ").trim();
     const base = slugify(text);
