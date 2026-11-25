@@ -146,6 +146,21 @@ describe("parseForm", () => {
     ).toHaveProperty("status");
   });
 
+  it("only lets a page be published if readers have a page for its type", () => {
+    const base = { slug: "a", title: "T", bodyMarkdown: "Body" };
+
+    for (const pageType of ["policy", "guidance", "service_guide"]) {
+      const result = parseForm(pages, { ...base, pageType, status: "published" }, "create");
+      expect(result.ok, pageType).toBe(true);
+    }
+    for (const pageType of ["general", "whats_new"]) {
+      const published = parseForm(pages, { ...base, pageType, status: "published" }, "create");
+      expect(errorsOf(published), pageType).toHaveProperty("status");
+      const draft = parseForm(pages, { ...base, pageType, status: "draft" }, "create");
+      expect(draft.ok, pageType).toBe(true);
+    }
+  });
+
   it("keeps markdown as typed, with its line breaks and no trimming of inner space", () => {
     const body = "## Scope\r\n\r\n- one\r\n- two  \r\n";
     const values = valuesOf(

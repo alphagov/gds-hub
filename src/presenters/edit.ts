@@ -21,12 +21,13 @@ import type {
   EditListViewModel,
   ErrorSummaryItem,
 } from "../view-models.js";
+import { EDIT_PATH } from "../site-map.js";
 import { HOME_BREADCRUMB } from "./format.js";
 
 // Builds the view models for the editing pages. Every value is plain text for
 // the templates to escape.
 
-export const EDIT_PATH = "/edit";
+export { EDIT_PATH };
 
 export const editPaths = {
   list: (key: EditEntityKey) => `${EDIT_PATH}/${key}`,

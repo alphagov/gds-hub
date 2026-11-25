@@ -201,6 +201,7 @@ export function parseForm(entity: EditEntity, body: unknown, mode: FormMode): Pa
     values[field.name] = read.value;
   }
 
+  if (errors.length === 0) errors.push(...(entity.check?.(values) ?? []));
   if (errors.length > 0) return { ok: false, errors, submitted };
   if (mode === "create" && entity.keyFromSlug === true) values.key = values.slug ?? null;
   return { ok: true, values, submitted };

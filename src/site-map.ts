@@ -10,6 +10,9 @@ export const SERVICE_NAME = "GDS Hub";
 
 export const HOME_PATH = "/";
 
+/** The editing pages. Everything under it is private to editors. */
+export const EDIT_PATH = "/edit";
+
 export interface Section {
   /** Shown in the service navigation and as the page heading. */
   readonly name: string;

@@ -204,6 +204,19 @@ async function changeTime(tx: Transaction): Promise<Date> {
   return new Date(Number(row.milliseconds));
 }
 
+/**
+ * The time to give an update. The database clock is read in milliseconds, so
+ * two writes in the same millisecond would leave updated_at as it was, and a
+ * form loaded before the first write would still look current. The row is
+ * locked, so the update always moves updated_at on by at least a millisecond.
+ */
+async function nextVersionTime(tx: Transaction, previous: unknown): Promise<Date> {
+  const now = await changeTime(tx);
+  return previous instanceof Date && now.getTime() <= previous.getTime()
+    ? new Date(previous.getTime() + 1)
+    : now;
+}
+
 const MANAGED_FIELDS: ReadonlySet<string> = new Set<ManagedField>(["id", "createdAt", "updatedAt"]);
 
 /** Thrown inside a write's transaction to undo an update that turned out to change nothing. */
@@ -355,7 +368,7 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
           );
           if (requested.length === 0) return { record: before, changedFields: [] };
 
-          const changedAt = await changeTime(tx);
+          const changedAt = await nextVersionTime(tx, before.updatedAt);
           const after = firstRow(
             await tx
               .update(table)

@@ -1,4 +1,6 @@
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { vendors } from "../../src/db/schema/index.js";
 import {
   createRepositories,
   RepositoryError,
@@ -55,6 +57,27 @@ describe("an update that says when the record was last changed", () => {
     await expect(
       repos.vendors.update(vendor.id, { description: "First" }, editor, {
         expectedUpdatedAt: vendor.updatedAt,
+      }),
+    ).rejects.toMatchObject({ kind: "stale" });
+  });
+
+  it("always moves the update time on, even when the database clock hasn't", async () => {
+    const vendor = await repos.vendors.create({ slug: "e", name: "E" }, editor);
+    // As if the last write happened in the same millisecond as the next one.
+    const ahead = new Date(Date.now() + 3_600_000);
+    await testDatabase?.db
+      .update(vendors)
+      .set({ updatedAt: ahead })
+      .where(eq(vendors.id, vendor.id));
+
+    const { record } = await repos.vendors.update(vendor.id, { description: "Next" }, editor, {
+      expectedUpdatedAt: ahead,
+    });
+
+    expect(record.updatedAt.getTime()).toBe(ahead.getTime() + 1);
+    await expect(
+      repos.vendors.update(vendor.id, { description: "Late" }, editor, {
+        expectedUpdatedAt: ahead,
       }),
     ).rejects.toMatchObject({ kind: "stale" });
   });

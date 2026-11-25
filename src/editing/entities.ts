@@ -3,6 +3,7 @@ import {
   CONTENT_STATUSES,
   MIGRATION_STATUSES,
   PAGE_TYPES,
+  READER_PAGE_TYPES,
   TOOL_KINDS,
   instanceFields,
   pageFields,
@@ -122,6 +123,8 @@ export interface EditEntity {
   /** Copy the slug into the `key` column when a record is added (records addressed by both). */
   readonly keyFromSlug?: boolean;
   readonly fields: readonly EditField[];
+  /** Rules that depend on several fields, run once each field is valid on its own. */
+  readonly check?: (values: EditValues) => readonly { field: string; message: string }[];
 }
 
 function options<T extends string>(
@@ -156,6 +159,8 @@ const TOOL_KIND_OPTIONS = options(TOOL_KINDS, {
   business: "Business",
 });
 
+const READER_PAGE_TYPE_VALUES: readonly string[] = Object.values(READER_PAGE_TYPES).flat();
+
 const DATE_HINT = "Use the format YYYY-MM-DD, for example 2026-07-15.";
 const URL_HINT = "Start with https:// or http://.";
 const SLUG_HINT =
@@ -168,6 +173,17 @@ export const EDIT_ENTITIES = {
     description: "Policies, guidance, service guides and other written pages.",
     repository: "pages",
     titleField: "title",
+    // Readers can only open some types of page, so any other type stays a draft.
+    check: (values) =>
+      values.status === "published" && !READER_PAGE_TYPE_VALUES.includes(String(values.pageType))
+        ? [
+            {
+              field: "status",
+              message:
+                "Only policies, guidance and service guides can be published for now. Save other types of page as drafts",
+            },
+          ]
+        : [],
     fields: [
       { kind: "slug", name: "slug", label: "Slug", hint: SLUG_HINT, schema: pageFields.slug },
       {

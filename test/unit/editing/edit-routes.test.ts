@@ -8,6 +8,7 @@ import {
   TEST_MODE_WARNING,
 } from "../../../src/editing/test-mode.js";
 import { silentLogger } from "../../../src/lib/logger.js";
+import type { RedirectService } from "../../../src/services/redirects/redirect-service.js";
 import { systemActor } from "../../../src/services/audit/actor.js";
 import { fakeCatalogue } from "../catalogue-fixtures.js";
 import { fakeContent } from "../content-fixtures.js";
@@ -34,6 +35,8 @@ afterEach(async () => {
 interface Setup {
   readonly service?: FakeEditService;
   readonly identity?: EditorIdentityProvider;
+  /** Where old addresses go. Nothing redirects unless it is given. */
+  readonly redirects?: RedirectService;
   /** Leave editing switched off. */
   readonly off?: boolean;
   /** Use the app the last call started, so a test can read its address first. */
@@ -45,6 +48,7 @@ let lastService: FakeEditService | undefined;
 async function start({
   service = fakeEditService(),
   identity,
+  redirects = noRedirects,
   off,
   reuse,
 }: Setup = {}): Promise<FakeEditService> {
@@ -59,7 +63,7 @@ async function start({
       logger: silentLogger,
       catalogue: fakeCatalogue(),
       content: fakeContent(),
-      redirects: noRedirects,
+      redirects,
       ...(editing === undefined ? {} : { editing }),
     }),
   );
@@ -519,6 +523,65 @@ describe("requests from other sites", () => {
 
       expect(response.status, JSON.stringify(headers)).toBe(303);
     }
+  });
+});
+
+describe("the Origin of a write when Sec-Fetch-Site is missing", () => {
+  it("must match the scheme as well as the host", async () => {
+    await start();
+    const host = new URL(running?.baseUrl ?? "").host;
+
+    const { response, service } = await post("/edit/vendors", VALID_VENDOR, {
+      headers: { origin: `https://${host}` },
+      reuse: true,
+    });
+
+    expect(response.status).toBe(403);
+    expect(service.writes).toEqual([]);
+  });
+
+  it("matches https when the load balancer says the browser used it", async () => {
+    await start();
+    const host = new URL(running?.baseUrl ?? "").host;
+
+    const { response } = await post("/edit/vendors", VALID_VENDOR, {
+      headers: { origin: `https://${host}`, "x-forwarded-proto": "https" },
+      reuse: true,
+    });
+
+    expect(response.status).toBe(303);
+  });
+
+  it("is refused if the browser used https but the Origin says http", async () => {
+    await start();
+    const host = new URL(running?.baseUrl ?? "").host;
+
+    const { response } = await post("/edit/vendors", VALID_VENDOR, {
+      headers: { origin: `http://${host}`, "x-forwarded-proto": "https" },
+      reuse: true,
+    });
+
+    expect(response.status).toBe(403);
+  });
+});
+
+describe("an editing address that isn't found", () => {
+  it("is never redirected, even if an old address matches, so it can't be cached", async () => {
+    const redirects: RedirectService = { newPathFor: () => Promise.resolve("/tools") };
+
+    const response = await get("/edit/vendors/999", { redirects });
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("location")).toBeNull();
+    expect(response.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("still lets other addresses redirect", async () => {
+    const redirects: RedirectService = { newPathFor: () => Promise.resolve("/tools") };
+
+    const response = await get("/editorial-policy.html", { redirects });
+
+    expect(response.status).toBe(301);
   });
 });
 
