@@ -68,11 +68,13 @@ describe("verifying a migration", () => {
     expect(outcome.checked).toEqual({ records: 52, pages: 10, redirects: 28 });
   });
 
-  it("lists redirects to content pages as waiting for their routes, not as problems", async () => {
+  it("lists redirects to pages with no route yet as waiting, not as problems", async () => {
     const outcome = await verify();
     expect(outcome.waitingForPhase6).toEqual(
-      expect.arrayContaining(["/policies/device-policy", "/guidance/widgets", "/pages/about"]),
+      expect.arrayContaining(["/whats-new/trying-out-paper-boats", "/pages/about"]),
     );
+    expect(outcome.waitingForPhase6).not.toContain("/policies/device-policy");
+    expect(outcome.waitingForPhase6).not.toContain("/guidance/widgets");
     expect(outcome.waitingForPhase6).not.toContain("/tools/lanternly");
   });
 

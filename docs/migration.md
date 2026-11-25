@@ -120,7 +120,7 @@ Problems fail the check. Warnings need a person to look, but don't fail it:
 - a heading that differs from the old page's
 - a record or link in the database that the current Hub doesn't have
 
-Redirects to content pages (`/policies/…`, `/guidance/…`, `/whats-new/…` and `/pages/…`) are listed under `waitingForPhase6`. Their pages are in the database, but their routes come in Phase 6.
+Redirects to pages that have no route yet (`/whats-new/…` and `/pages/…`) are listed under `waitingForPhase6`. Their pages are in the database, but nothing serves them yet. Redirects to `/policies/…` and `/guidance/…` are checked like any other page.
 
 Then run the app against the migration database (`DATABASE_URL=… npm run dev`) and look at the Phase 4 pages.
 
@@ -192,7 +192,7 @@ Restore the RDS snapshot taken before `--apply`. The audit log is append-only, s
 
 The inventory report lists every item that needs a person, with `status: "manual_review"` and its warnings. They are of 3 kinds:
 
-- **Pages converted with warnings**, for example a table markdown can't show, kept as HTML. They are loaded as converted. Check each new page once it renders (Phase 6), and fix it in the new Hub.
+- **Pages converted with warnings**, for example a table markdown can't show, kept as HTML. They are loaded as converted. Check each new page once it renders at `/policies/…` or `/guidance/…`, and fix it in the new Hub.
 - **Items with nothing to load**: a data file the migration doesn't know, a listing with no replacement page, or a redirect page that goes to another site. Decide with the content owner whether each is still needed. A redirect to another site can be recreated in CloudFront if it is.
 - **Data warnings**, for example a value that couldn't be stored or a repeated key. Fix them in the current Hub's data, or agree to accept them.
 

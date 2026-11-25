@@ -1,5 +1,4 @@
-import { Router, type Request, type RequestHandler } from "express";
-import { HttpError } from "../lib/http-error.js";
+import { Router, type Request } from "express";
 import type { Renderer } from "../lib/render.js";
 import { presentCapabilities, presentCapability, presentHome } from "../presenters/capabilities.js";
 import type { NavigationGroups } from "../presenters/contents.js";
@@ -10,45 +9,16 @@ import {
 } from "../presenters/organisation.js";
 import { presentInstance, presentTool, presentTools, presentVendor } from "../presenters/tools.js";
 import type { CatalogueService } from "../services/catalogue/catalogue-service.js";
+import type { ContentService } from "../services/content/content-service.js";
 import { CATALOGUE_ROUTES, HOME_PATH, SECTIONS } from "../site-map.js";
-import type { ViewName, Views } from "../view-models.js";
-
-// Matches the database's rule for slugs and keys (kebab case). Anything else
-// can't be a record, so it gets the page not found page without a query.
-const IDENTIFIER = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const MAX_IDENTIFIER_LENGTH = 160;
-
-/** The route's slug or key, if it could belong to a record. */
-function identifierFrom(req: Request, param: "slug" | "key"): string | undefined {
-  const value: unknown = req.params[param];
-  if (typeof value !== "string" || value.length > MAX_IDENTIFIER_LENGTH) return undefined;
-  return IDENTIFIER.test(value) ? value : undefined;
-}
-
-/**
- * A handler that loads a page's view model and renders it. If `load` gives
- * undefined (no such record), the page not found page is shown instead.
- */
-function page<T extends ViewName>(
-  renderer: Renderer,
-  template: T,
-  load: (req: Request) => Promise<Views[T] | undefined>,
-): RequestHandler {
-  return (req, res, next) => {
-    const handle = async (): Promise<void> => {
-      const model = await load(req);
-      if (model === undefined) {
-        next(new HttpError(404));
-        return;
-      }
-      await renderer.render(res, template, model);
-    };
-    handle().catch(next);
-  };
-}
+import { identifierFrom, page } from "./route-helpers.js";
 
 /** The catalogue's read pages: capabilities, tools, instances, services, units and vendors. */
-export function catalogueRouter(renderer: Renderer, catalogue: CatalogueService): Router {
+export function catalogueRouter(
+  renderer: Renderer,
+  catalogue: CatalogueService,
+  content: ContentService,
+): Router {
   const router = Router();
 
   /** Loads a detail page's record and the contents. Undefined if there's no such record. */
@@ -134,11 +104,17 @@ export function catalogueRouter(renderer: Renderer, catalogue: CatalogueService)
 
   router.get(
     CATALOGUE_ROUTES.productTeamService,
-    page(
-      renderer,
-      "pages/product-team-service.njk",
-      detail("slug", (slug) => catalogue.productTeamService(slug), presentProductTeamService),
-    ),
+    page(renderer, "pages/product-team-service.njk", async (req) => {
+      const slug = identifierFrom(req, "slug");
+      if (slug === undefined) return undefined;
+      const [found, groups] = await Promise.all([
+        catalogue.productTeamService(slug),
+        catalogue.capabilityGroups(),
+      ]);
+      if (found === undefined) return undefined;
+      const guides = await content.serviceGuides(found.productTeamService.id);
+      return presentProductTeamService(found, groups, guides);
+    }),
   );
 
   router.get(

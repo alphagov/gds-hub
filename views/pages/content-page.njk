@@ -1,0 +1,46 @@
+{% extends "layouts/content.njk" %}
+{% from "govuk/components/summary-list/macro.njk" import govukSummaryList %}
+{% from "partials/rendered-markdown.njk" import renderedMarkdown %}
+
+{% block lead %}
+  {% if page.summary %}
+    <p class="govuk-body-l">{{ page.summary }}</p>
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+  {% set ownerHtml %}
+    {% if page.owner and page.owner.href %}
+      <a class="govuk-link" href="{{ page.owner.href }}">{{ page.owner.text }}</a>
+    {% elif page.owner %}
+      {{ page.owner.text }}
+    {% endif %}
+  {% endset %}
+  {% set contactHtml %}
+    {% if page.contact and page.contact.href %}
+      <a class="govuk-link" href="{{ page.contact.href }}">{{ page.contact.text }}</a>
+    {% elif page.contact %}
+      {{ page.contact.text }}
+    {% endif %}
+  {% endset %}
+  {{ govukSummaryList({
+    rows: [
+      { key: { text: "Owner" }, value: { html: ownerHtml } } if page.owner,
+      { key: { text: "Contact" }, value: { html: contactHtml } } if page.contact,
+      { key: { text: "Last reviewed" }, value: { text: page.lastReviewed } }
+    ]
+  }) }}
+
+  {% if page.onThisPage | length %}
+    <nav class="app-on-this-page" aria-label="{{ page.onThisPageLabel }}">
+      <h2 class="govuk-heading-s">{{ page.onThisPageLabel }}</h2>
+      <ul class="govuk-list">
+        {% for section in page.onThisPage %}
+          <li><a class="govuk-link govuk-link--no-visited-state" href="{{ section.href }}">{{ section.text }}</a></li>
+        {% endfor %}
+      </ul>
+    </nav>
+  {% endif %}
+
+  {{ renderedMarkdown(page.bodyHtml) }}
+{% endblock %}

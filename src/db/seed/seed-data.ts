@@ -542,7 +542,7 @@ export const seedPages: SeedPage[] = [
     title: "Software approval policy",
     summary: "How to get a new tool approved before you use it.",
     bodyMarkdown:
-      "## Before you start\n\nCheck the Hub to see if an approved tool already does what you need.\n\n## How to apply\n\n1. Complete a security assessment.\n2. Get approval from your head of profession.\n3. Ask the software service desk to buy the licence.",
+      "## Before you start\n\nCheck the [list of tools](/tools) to see if an approved tool already does what you need.\n\nYou will need:\n\n- the name of the tool\n- what you want to use it for\n- who else will use it\n\n## How to apply\n\n1. Complete a security assessment.\n2. Get approval from your head of profession.\n3. Ask the software service desk to buy the licence.\n\n## How long it takes\n\n| Type of tool | Usual time |\n| --- | --- |\n| Already approved | 2 working days |\n| New to GDS | 4 weeks |",
     ownerName: "Information Security",
     ownerContact: "infosec@example.com",
     lastReviewedAt: "2026-07-15",
@@ -607,4 +607,5 @@ export const seedPages: SeedPage[] = [
 export const seedRedirects: Omit<Insert<typeof redirects>, Managed>[] = [
   { oldPath: "/tools/pipeline-pilot-ci/", newPath: "/tools/pipeline-pilot" },
   { oldPath: "/collaboration-tools.html", newPath: "/capabilities/team-messaging" },
+  { oldPath: "/InfoSec/software-approval.html", newPath: "/policies/software-approval" },
 ];

@@ -32,3 +32,8 @@ Ideas raised during phases that are out of scope for the phase that found them.
 - Add an option to `migrate:load` to overwrite records an editor has changed, if a re-run after cut-over is ever needed. For now they are always skipped (Phase 5b).
 - Cache redirect lookups, or the redirect responses at CloudFront, if 404 traffic to old addresses turns out to be heavy (Phase 5b, for Phase 12).
 - Connect to RDS over TLS, checking its certificate (for example `sslmode=verify-full` with the RDS certificate bundle in the image), for the app and the migration task. The migration's AWS run waits for this (Phase 5b, for Phase 13).
+- Add routes for `/whats-new/:slug` and `/pages/:slug`, and a `/whats-new` listing. Migrated redirects already point at them and still show page not found. They weren't in Phase 6's brief (Phase 6).
+- Render instance text fields as markdown now that `src/lib/markdown.ts` exists (Phase 6, supersedes the Phase 4 entry above).
+- Rename `waitingForPhase6` in `src/migration/verify.ts` and its report, now it lists pages with no route rather than waiting for Phase 6 (Phase 6).
+- Style `details` and `summary` in page bodies with the `govuk-details` classes, and keep `open`. They render unstyled for now (Phase 6).
+- Check the heading ids against the old Hub's anchors on the real build (apostrophes, accents), so migrated `#fragment` links land on the right heading (Phase 6).
