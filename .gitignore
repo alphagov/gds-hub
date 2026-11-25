@@ -68,4 +68,5 @@ crash.log
 
 # Claude
 /.claude
+.claude/settings.local.json
 infrastructure/terraform/bootstrap/backend.tf.off

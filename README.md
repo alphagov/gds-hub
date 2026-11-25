@@ -200,9 +200,10 @@ test/
   e2e/            Playwright tests (*.spec.ts)
   integration/    Vitest tests that need Postgres
 docs/
-  build-plan.md   the phased build plan
-  progress/       progress.md (summary of each phase) and progress-phase<N>.md (full handover per phase)
-  backlog.md      ideas that are out of scope for now
+  build-plan.md     the phased build plan
+  claude-skills.md  the project skills Claude Code uses at set points in each phase
+  progress/         progress.md (summary of each phase) and progress-phase<N>.md (full handover per phase)
+  backlog.md        ideas that are out of scope for now
 ```
 
 Requests flow from routes to services to repositories to the database. Only repositories talk to the database, and every write creates an audit log entry.
@@ -245,6 +246,7 @@ The database holds something `db:reset` won't throw away, and the message says w
 - Every page must meet WCAG 2.2 AA and work without JavaScript.
 - Never commit data from the current Hub, exports or database dumps. Tests use made-up sample data only.
 - After each phase, add a handover note in `docs/progress/progress-phase<N>.md` and a summary in [docs/progress/progress.md](docs/progress/progress.md).
+- Claude Code finishes each phase with the project skills in `.claude/skills`. See [docs/claude-skills.md](docs/claude-skills.md).
 
 ## Licence
 
