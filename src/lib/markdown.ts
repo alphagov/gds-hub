@@ -61,6 +61,8 @@ const SANITISE_OPTIONS: sanitizeHtml.IOptions = {
   // No class, id or style: content can't fake GOV.UK components or clobber the page.
   allowedAttributes: {
     a: ["href"],
+    // A continued procedure can start above 1. The value is checked below.
+    ol: ["start"],
     img: ["src", "alt"],
     th: ["colspan", "rowspan"],
     td: ["colspan", "rowspan"],
@@ -119,6 +121,12 @@ export function renderMarkdown(markdown: string): RenderedMarkdown {
   for (const [tag, classes] of Object.entries(CLASSES)) {
     $(tag).addClass(classes);
   }
+
+  // The sanitiser can't check a value, so keep a list's start only if it is a small whole number.
+  $("ol[start]").each((_, element) => {
+    const list = $(element);
+    if (!/^\d{1,6}$/.test(list.attr("start") ?? "")) list.removeAttr("start");
+  });
 
   const used = new Set<string>(RESERVED_IDS);
   const headings: RenderedHeading[] = [];

@@ -53,7 +53,7 @@ renderMarkdown(markdown: string): { html: SafeHtml; headings: { id: string; text
 ## Running the checks
 
 - `npm run test:e2e` needs a seeded database: `db:migrate` then `db:seed` on an empty one. In this session `DATABASE_URL` pointed at `gdshub_migration`, so I created a separate `gdshub_e2e_seed` database on the same server, migrated and seeded it, and ran Playwright with `DATABASE_URL` pointing at it. Nothing was changed in `gdshub_migration`. Drop `gdshub_e2e_seed` when you no longer need it.
-- `docker-compose.yml` still points the app container at `gdshub_migration`, though commit `cfc6860` describes it as the seeded database. Not changed.
+- `docker-compose.yml` is back on `gdshub`, the database the db service creates. An earlier commit on this branch had pointed the app container at `gdshub_migration`, which doesn't exist on a fresh volume, so database pages gave 500. To browse a migrated database, run the app with `DATABASE_URL=… npm run dev` as `docs/migration-validation.md` describes.
 
 ## Follow-ups
 
