@@ -6,6 +6,7 @@ variable "name" {
 variable "allowed_cidrs" {
   description = "IPv4 address ranges allowed to reach the service. Everything else is blocked."
   type        = list(string)
+  sensitive   = true
 
   validation {
     condition     = length(var.allowed_cidrs) > 0 && alltrue([for cidr in var.allowed_cidrs : can(cidrhost(cidr, 0)) && !strcontains(cidr, ":")])

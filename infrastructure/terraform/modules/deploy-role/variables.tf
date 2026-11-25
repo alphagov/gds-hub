@@ -6,6 +6,7 @@ variable "name" {
 variable "github_oidc_provider_arn" {
   description = "ARN of the GitHub OIDC provider (the bootstrap stack's github_oidc_provider_arn output)."
   type        = string
+  sensitive   = true
 }
 
 variable "github_repository" {
@@ -28,26 +29,31 @@ variable "github_subject" {
   description = "The exact token subject to trust, if the repository's tokens don't use the default \"repo:owner/name:environment:name\" form (newer repositories can use an immutable form). Leave null for the default."
   type        = string
   default     = null
+  sensitive   = true
 }
 
 variable "ecr_repository_arn" {
   description = "ARN of the ECR repository the workflow pushes to (from the storage module)."
   type        = string
+  sensitive   = true
 }
 
 variable "execution_role_arn" {
   description = "ARN of the ECS execution role (from the iam module). The workflow passes it to task definitions."
   type        = string
+  sensitive   = true
 }
 
 variable "app_task_role_arn" {
   description = "ARN of the app's task role (from the iam module). The workflow passes it to task definitions."
   type        = string
+  sensitive   = true
 }
 
 variable "cluster_arn" {
   description = "ARN of the ECS cluster (from the service module)."
   type        = string
+  sensitive   = true
 }
 
 variable "cluster_name" {
@@ -63,6 +69,7 @@ variable "schema_migration_task_family" {
 variable "schema_migration_log_group_arn" {
   description = "ARN of the schema migration task's log group (from the storage module)."
   type        = string
+  sensitive   = true
 }
 
 variable "service_enabled" {
@@ -75,4 +82,5 @@ variable "service_arn" {
   description = "ARN of the Express service (from the service module). Only read when service_enabled is true."
   type        = string
   default     = null
+  sensitive   = true
 }

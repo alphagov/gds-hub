@@ -7,11 +7,13 @@ variable "region" {
 variable "allowed_cidrs" {
   description = "IPv4 address ranges allowed to reach the service. Set them only in the git-ignored terraform.tfvars."
   type        = list(string)
+  sensitive   = true
 }
 
 variable "github_oidc_provider_arn" {
   description = "ARN of the GitHub OIDC provider: the bootstrap stack's github_oidc_provider_arn output."
   type        = string
+  sensitive   = true
 }
 
 variable "github_repository" {
@@ -30,6 +32,7 @@ variable "github_subject" {
   description = "The exact OIDC token subject to trust, if the repository doesn't use the default \"repo:owner/name:environment:name\" form. Leave null for the default."
   type        = string
   default     = null
+  sensitive   = true
 }
 
 variable "create_service" {

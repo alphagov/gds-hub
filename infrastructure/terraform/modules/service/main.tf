@@ -66,20 +66,20 @@ resource "aws_ecs_express_gateway_service" "this" {
     }
 
     dynamic "environment" {
-      for_each = local.app_environment
+      for_each = nonsensitive(toset(keys(local.app_environment)))
 
       content {
         name  = environment.key
-        value = environment.value
+        value = local.app_environment[environment.key]
       }
     }
 
     dynamic "secret" {
-      for_each = local.database_secrets
+      for_each = nonsensitive(toset(keys(local.database_secrets)))
 
       content {
         name       = secret.key
-        value_from = secret.value
+        value_from = local.database_secrets[secret.key]
       }
     }
   }

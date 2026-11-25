@@ -2,6 +2,16 @@
 
 Internal documentation tool for GDS. Server-rendered, database-backed, editable in the browser.
 
+## Public repository
+
+This repo is PUBLIC, and CI/CD logs and artifacts are publicly downloadable. Avoid anything exploitable in code, config, docs and CI/CD at all costs.
+
+- Never commit or print AWS account IDs, ARNs, role names, bucket names, endpoints, subnet or security group IDs, hostnames, IP addresses, keys, tokens or credentials. Use placeholders in code, docs and examples.
+- Every Terraform output must set `sensitive = true`, as in infrastructure/terraform/bootstrap/outputs.tf. Read values locally with `terraform output -raw <name>`.
+- Pass such values to workflows through GitHub environment secrets or variables, never hard-coded. Never echo them in workflow steps; mask any derived value with `::add-mask::`.
+- Keep real `*.tfvars`, state files and plan output out of git. Commit only `*.tfvars.example` with placeholder values.
+- Treat CI workflow changes as security-sensitive: least-privilege `permissions`, no secrets exposed to pull requests from forks, and pin third-party actions.
+
 ## Stack (ADR-FD004 - do not change without a new ADR)
 
 Node 24 LTS, TypeScript (strict, ESM), Express, Nunjucks + govuk-frontend, Drizzle ORM, PostgreSQL 18,

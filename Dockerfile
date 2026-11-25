@@ -21,13 +21,24 @@ RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts
 # --- runtime ---
 FROM node:24-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8 AS runtime
 ARG APP_VERSION=dev
+# The CA certificates that sign RDS server certificates, which Node doesn't trust by default.
+# Docker checks the download against the pinned hash and fails the build if it differs. AWS
+# replaces this file when it rotates its CAs: download the new one from the same address,
+# check it with `openssl crl2pkcs7 -nocrl -certfile global-bundle.pem | openssl pkcs7 -print_certs`,
+# and update the hash here.
+# https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/UsingWithRDS.SSL.html
+ADD --checksum=sha256:90a6f1a7978a1b1b096dca6c57511ca48d3b8cf052f8e704baf358f34ea2f21b \
+    --chown=node:node --chmod=444 \
+    https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem /app/certs/rds-global-bundle.pem
 ENV NODE_ENV=production \
     PORT=3000 \
-    APP_VERSION=${APP_VERSION}
+    APP_VERSION=${APP_VERSION} \
+    NODE_EXTRA_CA_CERTS=/app/certs/rds-global-bundle.pem
 WORKDIR /app
 
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
 COPY --from=build --chown=node:node /app/dist ./dist
+COPY --chown=node:node drizzle ./drizzle
 COPY --chown=node:node views ./views
 COPY --chown=node:node public ./public
 COPY --chown=node:node package.json ./

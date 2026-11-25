@@ -21,26 +21,31 @@ variable "security_group_id" {
 variable "execution_role_arn" {
   description = "ARN of the ECS execution role (from the iam module)."
   type        = string
+  sensitive   = true
 }
 
 variable "infrastructure_role_arn" {
   description = "ARN of the Express Mode infrastructure role (from the iam module)."
   type        = string
+  sensitive   = true
 }
 
 variable "app_task_role_arn" {
   description = "ARN of the app's task role (from the iam module). The schema migration task uses it too."
   type        = string
+  sensitive   = true
 }
 
 variable "data_migration_task_role_arn" {
   description = "ARN of the data migration task's role (from the iam module)."
   type        = string
+  sensitive   = true
 }
 
 variable "database_address" {
   description = "The database's endpoint name (from the database module)."
   type        = string
+  sensitive   = true
 }
 
 variable "database_port" {
@@ -56,6 +61,7 @@ variable "database_name" {
 variable "database_secret_arn" {
   description = "ARN of the secret RDS manages for the master user (from the database module)."
   type        = string
+  sensitive   = true
 }
 
 variable "ecr_repository_url" {
