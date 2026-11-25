@@ -12,6 +12,7 @@ import {
   type Section,
 } from "../../src/site-map.js";
 import { fakeCatalogue } from "./catalogue-fixtures.js";
+import { fakeContent } from "./content-fixtures.js";
 import { noRedirects, startApp, testConfig, type RunningApp } from "./helpers.js";
 
 function headingOf(html: string): string | undefined {
@@ -27,6 +28,7 @@ describe("app", () => {
         config: testConfig,
         logger: silentLogger,
         catalogue: fakeCatalogue(),
+        content: fakeContent(),
         redirects: noRedirects,
       }),
     );
@@ -166,6 +168,7 @@ describe("app", () => {
             config,
             logger: silentLogger,
             catalogue: fakeCatalogue(),
+            content: fakeContent(),
             redirects: noRedirects,
           }),
         );

@@ -11,6 +11,7 @@ A short summary of each completed phase. The full handover for each phase (what 
 | P4    | Read journeys               | 2026-11-11 | Code complete              | [progress-phase4.md](progress-phase4.md)                                    |
 | P5a   | Migration: inventory        | 2026-11-11 | Code complete              | [progress-phase5.md](progress-phase5.md)                                    |
 | P5b   | Migration: load and verify  | 2026-11-12 | Code complete              | [progress-phase5.md](progress-phase5.md#part-b-loader-redirects-and-verify) |
+| P6    | Content pages               | 2026-11-24 | Code complete              | [progress-phase6.md](progress-phase6.md)                                    |
 
 ## Phase 0: Foundations and tooling (2026-11-04)
 
@@ -95,6 +96,16 @@ A short summary of each completed phase. The full handover for each phase (what 
 - `docs/migration.md` lists every manual step: local runs, the AWS run, manual review and the cut-over checklist.
 - **Written without running anything in the sandbox.** The tests were written first and agreed with the developer. The developer ran the checks, and migrated the real Hub into a local database and verified it, on the host.
 - `docs/migration-validation.md` lets reviewers run the whole migration on the synthetic fixtures, with the exact results to expect. See [progress-phase5.md](progress-phase5.md#part-b-loader-redirects-and-verify).
+
+## Phase 6: Content pages (2026-11-24)
+
+- `/policies`, `/policies/:slug`, `/guidance` and `/guidance/:slug` show published pages only. Guidance covers the `guidance` and `service_guide` page types, because the migration sends both there. A draft, a page of another type or a malformed slug gives the page not found page, and old addresses still redirect afterwards.
+- `src/lib/markdown.ts` renders markdown with `marked`, sanitises it with a strict `sanitize-html` allow-list, then adds GOV.UK classes and heading ids. Its `SafeHtml` type is only made there, and one template partial outputs it. Tests fail if `| safe` appears anywhere else.
+- Each page shows its owner (linked to the owning team when there is one), contact, last reviewed date ("Not recorded" if none) and an "On this page" list from the h2 headings. A service page lists its team's published service guides.
+- New content repository, content service and presenters, following the catalogue's layers. `createApp` takes a `content` dependency.
+- The XSS tests cover around 50 attack inputs. Playwright covers the seed journeys, and a second app on a database loaded from the migration fixtures (`gdshub_e2e_migrated`) covers a migrated policy, guidance page and service guide, and their old addresses. axe scans every new page type, with and without JavaScript.
+- Out of scope, by decision: `/whats-new/:slug` and `/pages/:slug`. Migrated redirects to them still show page not found, and `migrate:verify` lists them under `waitingForPhase6`.
+- The tests were written first and agreed with the developer. Lint, typecheck, Vitest and Playwright pass in the sandbox. See [progress-phase6.md](progress-phase6.md).
 
 ## Before Phase 2: inputs to request
 

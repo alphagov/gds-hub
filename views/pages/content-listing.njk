@@ -1,0 +1,23 @@
+{% extends "layouts/listing.njk" %}
+
+{% block intro %}
+  <p class="govuk-body-l">{{ page.description }}</p>
+{% endblock %}
+
+{% block list %}
+  {% if page.items | length %}
+    <ul class="govuk-list govuk-list--spaced">
+      {% for item in page.items %}
+        <li>
+          <a class="govuk-link govuk-!-font-weight-bold" href="{{ item.href }}">{{ item.text }}</a>
+          {% if item.summary %}
+            <p class="govuk-body govuk-!-margin-bottom-1">{{ item.summary }}</p>
+          {% endif %}
+          <p class="govuk-body-s govuk-hint govuk-!-margin-bottom-0">Last reviewed: {{ item.lastReviewed }}</p>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="govuk-body">{{ page.emptyText }}</p>
+  {% endif %}
+{% endblock %}

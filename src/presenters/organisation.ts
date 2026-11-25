@@ -1,5 +1,6 @@
 import type {
   BusinessUnitDetail,
+  PageRecord,
   ProductTeamServiceDetail,
   ProductTeamServiceListEntry,
   ServiceDirectory,
@@ -13,6 +14,7 @@ import type {
   ServicesViewModel,
 } from "../view-models.js";
 import { instanceLink } from "./capabilities.js";
+import { presentServiceGuides } from "./pages.js";
 import { contentsNavigation, type NavigationGroups } from "./contents.js";
 import {
   capitalise,
@@ -84,6 +86,7 @@ export function presentServices(
 export function presentProductTeamService(
   detail: ProductTeamServiceDetail,
   groups: NavigationGroups,
+  guides: readonly PageRecord[] = [],
 ): ProductTeamServiceViewModel {
   const { productTeamService: team } = detail;
   const email = emailLink(team.teamEmailAddress);
@@ -119,6 +122,7 @@ export function presentProductTeamService(
       ),
       instance: instanceLink(provided.instance),
     })),
+    guidance: presentServiceGuides(guides),
   };
 }
 

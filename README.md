@@ -191,10 +191,14 @@ src/
   lib/            shared code, such as the logger
   middleware/     Express middleware, such as request IDs and request logging
   routes/         route handlers
+  presenters/     turn records into the typed view models templates use
+  services/       what routes call, such as the catalogue and content services
+  repositories/   the only code that talks to the database
   types/          TypeScript type declarations
 test/
   unit/           Vitest tests (*.test.ts)
   e2e/            Playwright tests (*.spec.ts)
+  integration/    Vitest tests that need Postgres
 docs/
   build-plan.md     the phased build plan
   claude-skills.md  the project skills Claude Code uses at set points in each phase

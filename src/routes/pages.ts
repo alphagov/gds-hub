@@ -7,7 +7,7 @@ import { SECTIONS, type SectionKey } from "../site-map.js";
 import type { SectionViewModel } from "../view-models.js";
 
 /** Sections that don't have content yet. The catalogue router serves the others. */
-export const PLACEHOLDER_SECTIONS: readonly SectionKey[] = ["policies", "guidance", "search"];
+export const PLACEHOLDER_SECTIONS: readonly SectionKey[] = ["search"];
 
 /** A placeholder page for each section that doesn't have content yet. */
 export function pagesRouter(renderer: Renderer, catalogue: CatalogueService): Router {

@@ -38,6 +38,11 @@
     {{ govukSummaryList({ rows: rows }) }}
   {% endif %}
 
+  {% if page.guidance | length %}
+    <h2 class="govuk-heading-m">Guidance</h2>
+    {{ linkList(page.guidance) }}
+  {% endif %}
+
   <h2 class="govuk-heading-m">Tools it uses</h2>
   {{ linkList(page.instances, "No tools have been recorded for this team yet.") }}
 

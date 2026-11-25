@@ -1,0 +1,6 @@
+{#
+  renderedMarkdown(html): the HTML from renderMarkdown (src/lib/markdown.ts),
+  which is sanitised. This is the only template that outputs unescaped HTML,
+  and a test fails if another does.
+#}
+{% macro renderedMarkdown(html) %}{{ html | safe }}{% endmacro %}
