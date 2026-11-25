@@ -138,14 +138,15 @@ The migration loads the current Hub's built HTML and YAML data files into the da
 
 All configuration comes from environment variables. The app checks them when it starts. If a value is missing or invalid, it lists every problem and refuses to start.
 
-| Variable       | Default       | Description                                                 |
-| -------------- | ------------- | ----------------------------------------------------------- |
-| `NODE_ENV`     | `development` | `development`, `test` or `production`                       |
-| `PORT`         | `3000`        | Port the app listens on                                     |
-| `LOG_LEVEL`    | `info`        | `debug`, `info`, `warn` or `error`                          |
-| `APP_VERSION`  | `dev`         | Version reported by `/health`                               |
-| `DATABASE_URL` | none          | Required. A `postgres://` or `postgresql://` connection URL |
-| `EDIT_MODE`    | `off`         | `off` or `test`. See [Editing](#editing-in-test-mode)       |
+| Variable                        | Default       | Description                                                        |
+| ------------------------------- | ------------- | ------------------------------------------------------------------ |
+| `NODE_ENV`                      | `development` | `development`, `test` or `production`                              |
+| `PORT`                          | `3000`        | Port the app listens on                                            |
+| `LOG_LEVEL`                     | `info`        | `debug`, `info`, `warn` or `error`                                 |
+| `APP_VERSION`                   | `dev`         | Version reported by `/health`                                      |
+| `DATABASE_URL`                  | none          | Required. A `postgres://` or `postgresql://` connection URL        |
+| `EDIT_MODE`                     | `off`         | `off` or `test`. See [Editing](#editing-in-test-mode)              |
+| `ALLOW_UNAUTHENTICATED_EDITING` | none          | `yes`. Also needed for `EDIT_MODE=test` when `NODE_ENV=production` |
 
 Docker Compose also reads these from `.env`:
 
@@ -160,7 +161,7 @@ Never commit `.env` or any real credentials. In AWS, secrets come from Secrets M
 
 Editing in the browser is off by default: every `/edit` address gives page not found. Set `EDIT_MODE=test` to switch it on without sign-in. Anyone who can reach the app can then add, change and delete pages, tools, instances, vendors and services. Every edit page says so, and every change is recorded in the audit log as `system:unauthenticated_test_mode`.
 
-Use it only where access is already limited, such as behind the WAF IP allow-list, until editors are verified. Any other value of `EDIT_MODE` stops the app starting. To add an editable kind of record, or to replace test mode with a provider that verifies the sign-in token, see [docs/editing.md](docs/editing.md).
+Use it only where access is already limited, such as behind the WAF IP allow-list, until editors are verified. Any other value of `EDIT_MODE` stops the app starting, and so does `EDIT_MODE=test` in production unless `ALLOW_UNAUTHENTICATED_EDITING=yes` is also set. To add an editable kind of record, or to replace test mode with a provider that verifies the sign-in token, see [docs/editing.md](docs/editing.md).
 
 ## Scripts
 

@@ -10,6 +10,7 @@ const configSchema = z.object({
   APP_VERSION: z.string().min(1).default("dev"),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   EDIT_MODE: z.enum(EDIT_MODES).default("off"),
+  ALLOW_UNAUTHENTICATED_EDITING: z.enum(["yes"]).optional(),
 });
 
 export type LogLevel = (typeof LOG_LEVELS)[number];
@@ -52,6 +53,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
 
   const data = result.data;
+  // Unauthenticated editing in production has to be asked for twice, so one
+  // stray variable can't open the Hub to anyone who can reach it.
+  if (
+    data.NODE_ENV === "production" &&
+    data.EDIT_MODE === "test" &&
+    data.ALLOW_UNAUTHENTICATED_EDITING !== "yes"
+  ) {
+    throw new ConfigError([
+      "EDIT_MODE: test in production also needs ALLOW_UNAUTHENTICATED_EDITING=yes",
+    ]);
+  }
   return Object.freeze({
     nodeEnv: data.NODE_ENV,
     port: data.PORT,

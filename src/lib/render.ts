@@ -10,7 +10,7 @@ import { serviceNavigation, type NavigationItem } from "./navigation.js";
 export interface LayoutModel {
   readonly cspNonce: string;
   readonly navigation: readonly NavigationItem[];
-  /** Shown above the page's content on every page while the editor is unverified. */
+  /** Shown above the content of every editing page (and its error pages) while the editor is unverified. */
   readonly editNotice?: string;
 }
 

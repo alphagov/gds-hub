@@ -14,7 +14,7 @@ Editors add, change and delete records at `/edit`. This page explains how that i
 
 ## Test mode
 
-`EDIT_MODE=test` switches editing on without checking who is editing (`src/editing/test-mode.ts`). Everyone is the system actor `system:unauthenticated_test_mode`, which is recorded in `audit_log.actor_name` and `actor_subject`. Nothing a person types is recorded as their identity. Every edit page shows a warning while the editor is not verified.
+`EDIT_MODE=test` switches editing on without checking who is editing (`src/editing/test-mode.ts`). Everyone is the system actor `system:unauthenticated_test_mode`, which is recorded in `audit_log.actor_name` and `actor_subject`. Nothing a person types is recorded as their identity. In production the app only starts with `EDIT_MODE=test` if `ALLOW_UNAUTHENTICATED_EDITING=yes` is also set. Every edit page shows a warning while the editor is not verified.
 
 This does not meet the Identity rule in `CLAUDE.md`, which says every `/edit/*` route must verify the Lambda@Edge JWT. It is a deliberate exception so editing can be released before sign-in is delivered. The JWT checks are still to do (see the Phase 8 handover).
 

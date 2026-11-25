@@ -101,6 +101,21 @@ function valueOf(field: EditField, row: Row): EditValue {
   throw new Error(`the ${field.name} column holds a value the form can't show`);
 }
 
+/**
+ * A page that is published has the time it first was. Editors don't type it:
+ * it is set when the status becomes "published" and left alone after.
+ */
+function withPublishedAt(
+  key: EditEntityKey,
+  values: EditValues,
+  alreadyPublishedAt: unknown,
+): Readonly<Record<string, EditValue | Date>> {
+  if (key !== "pages" || values.status !== "published" || alreadyPublishedAt instanceof Date) {
+    return values;
+  }
+  return { ...values, publishedAt: new Date() };
+}
+
 export function createEditService(repositories: EditRepositories): EditService {
   // The repositories are typed by table. This is the one place they are
   // treated alike, as every editable table is read and written the same way.
@@ -145,12 +160,15 @@ export function createEditService(repositories: EditRepositories): EditService {
     },
 
     create: async (key, values, actor) => {
-      const created = await repositoryFor(key).create(values, actor);
+      const created = await repositoryFor(key).create(withPublishedAt(key, values, null), actor);
       return summary(EDIT_ENTITIES[key], created);
     },
 
     update: async (key, id, values, actor, expectedUpdatedAt) => {
-      const { record } = await repositoryFor(key).update(id, values, actor, { expectedUpdatedAt });
+      const repository = repositoryFor(key);
+      const current = key === "pages" ? await repository.getById(id) : undefined;
+      const changes = withPublishedAt(key, values, current?.publishedAt);
+      const { record } = await repository.update(id, changes, actor, { expectedUpdatedAt });
       return summary(EDIT_ENTITIES[key], record);
     },
 

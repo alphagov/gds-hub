@@ -56,7 +56,7 @@ function idFrom(req: Request): number {
 
 /** The form's fields. Only form posts are accepted: anything else is a bad request. */
 function formBody(req: Request): unknown {
-  if (req.is("application/x-www-form-urlencoded") === false || req.body === undefined) {
+  if (req.body === undefined || !req.is("application/x-www-form-urlencoded")) {
     throw new BadRequestError("expected form data");
   }
   return req.body;

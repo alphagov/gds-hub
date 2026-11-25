@@ -32,7 +32,7 @@ Until then, anyone who can reach the app can edit when `EDIT_MODE=test`. It is o
 
 ## What was built
 
-- **Off by default.** `EDIT_MODE` is `off` (the default, and what a blank value means) or `test`. Any other value stops the app starting. When off, every `/edit/*` request gives page not found.
+- **Off by default.** `EDIT_MODE` is `off` (the default, and what a blank value means) or `test`. Any other value stops the app starting. When off, every `/edit/*` request gives page not found. In production, `EDIT_MODE=test` also needs `ALLOW_UNAUTHENTICATED_EDITING=yes`, otherwise the app won't start, so one stray variable can't open editing to everyone.
 - **An identity seam** (`src/editing/editor-identity.ts`). `requireEditor(provider)` asks the provider on every request, puts the editor on `res.locals.editor` with the request's ID on their actor, refuses a request the provider can't identify with a 403, and passes a provider's failure on as a 500.
 - **Test mode** (`src/editing/test-mode.ts`). The provider gives the fixed system actor `system:unauthenticated_test_mode` and `verified: false`. Nothing a person types is recorded as an identity. Every page rendered for an unverified editor, including error pages, shows a warning banner (`layout.editNotice`, set in `src/lib/render.ts`).
 - **Editing pages** for pages, tools, instances, vendors and products, teams and services (`services` in addresses): `GET /edit`, `/edit/:entity`, `/edit/:entity/new`, `/edit/:entity/:id` and `/edit/:entity/:id/delete`, with `POST` to the first, third and fourth of those and to the delete address. They use GOV.UK Frontend macros, post normally (so work without JavaScript), show the error summary with the typed values kept, and redirect with a 303 after a save.
@@ -64,7 +64,8 @@ Until then, anyone who can reach the app can edit when `EDIT_MODE=test`. It is o
 - **The warning is rendered by the layout** from `res.locals.editor`, so every page an unverified editor sees carries it, including 403/404/409/500 pages, without each route remembering to.
 - **Pages with an error summary** start their document title with `Error: `, using a new `hasError` flag on `PageViewModel` and an argument to `documentTitle`, per the GOV.UK pattern.
 - **Two changes to tests the developer reviewed,** both because the page behaves differently from what the test assumed: the index test looks for links inside `main` (Tools and Services are also in the service navigation), and the error summary test checks the field has focus when JavaScript is on (GOV.UK Frontend moves focus and doesn't change the address). The edit route tests also set a longer timeout, because some tests start a new app for each request, and one test was added for addresses outside `/edit`.
-- **Seeded pages have no `publishedAt`** when saved through the form, because it isn't on the form (as planned). Nothing reads it yet.
+- **`publishedAt` is set by the edit service,** not typed: the first time a page's status becomes `published` (on create or update), and never changed after. Nothing reads it yet.
+- **The delete page says links to other records go with the record** (cascading deletes are audited).
 
 ## Steps to run on the host
 
@@ -76,7 +77,9 @@ EDIT_MODE=test npm run dev
 # open http://localhost:3000/edit
 ```
 
-Add `EDIT_MODE=` (blank, meaning off) to `.env.example` by hand: the sandbox can't edit that file. For the cloud environment, set `EDIT_MODE=test` on the ECS service only when access is limited (the WAF IP allow-list). The Terraform doesn't set it.
+`.env.example` has `EDIT_MODE=` (blank, meaning off). For the cloud environment, set `EDIT_MODE=test` and `ALLOW_UNAUTHENTICATED_EDITING=yes` on the ECS service only when access is limited (the WAF IP allow-list). The Terraform doesn't set them.
+
+For `npm run test:e2e` against a local database that holds migrated data, use a separate seeded database, for example `gdshub_e2e_seed`, by setting `DATABASE_URL` for that command.
 
 ## Blockers and missing packages
 
@@ -85,5 +88,4 @@ No packages are missing. No blockers.
 ## Follow-ups
 
 - **Verify the JWT (Phase 8, still to do).** Add a provider that checks the signature, `exp`, `iss` and `aud`, reads the email and returns `verified: true`, then choose it in `src/server.ts`. Add tests with tokens signed by keys generated during the test run, and the audit email checks. See `docs/editing.md`.
-- Add `EDIT_MODE` to `.env.example` (see above).
 - Not in this release, logged in `docs/backlog.md`: an "Edit this page" link on the read pages, editing links between records (a tool's capabilities, a team's instances, business units), instance `extraAttributes`, contracts, suppliers, capabilities, business units, ownership levels and redirects, and previewing before saving (Phase 9).

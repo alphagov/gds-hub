@@ -61,8 +61,8 @@
 {% block content %}
   {% set hasContents = page.contents and page.contents.groups | length %}
   {#
-    Shown while the editor is not verified (layout.editNotice), on every page
-    they see, including error pages.
+    Shown while the editor is not verified (layout.editNotice): on the editing
+    pages and the error pages that follow them.
   #}
   {% if layout.editNotice %}
     {{ govukNotificationBanner({ text: layout.editNotice }) }}

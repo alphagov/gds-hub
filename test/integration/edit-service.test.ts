@@ -297,6 +297,45 @@ describe("updating", () => {
   });
 });
 
+describe("publishing a page", () => {
+  const page = (status: string, title: string) => ({
+    slug: "publish-me",
+    title,
+    pageType: "guidance",
+    summary: null,
+    bodyMarkdown: "Text",
+    ownerName: null,
+    ownerContact: null,
+    productTeamServiceId: null,
+    status,
+    lastReviewedAt: null,
+  });
+
+  it("sets the published time when the status first becomes published, and keeps it", async () => {
+    const draft = await service.create("pages", page("draft", "Draft"), testModeActor);
+    expect((await repos.pages.getById(draft.id))?.publishedAt).toBeNull();
+
+    const published = await service.update(
+      "pages",
+      draft.id,
+      page("published", "Draft"),
+      testModeActor,
+      draft.updatedAt,
+    );
+    const first = (await repos.pages.getById(draft.id))?.publishedAt;
+    expect(first).toBeInstanceOf(Date);
+
+    await service.update(
+      "pages",
+      draft.id,
+      page("published", "Renamed"),
+      testModeActor,
+      published.updatedAt,
+    );
+    expect((await repos.pages.getById(draft.id))?.publishedAt).toEqual(first);
+  });
+});
+
 describe("removing", () => {
   it("deletes the record and audits it with the actor", async () => {
     const created = await service.create(
