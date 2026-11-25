@@ -207,6 +207,24 @@ describe("renderMarkdown", () => {
       expect($("img").first().attr("alt")).toBe("A diagram");
     });
 
+    it("keeps the number an ordered list starts at", () => {
+      const { $ } = render('4. four\n5. five\n\n<ol start="7"><li>seven</li></ol>');
+
+      expect(
+        $("ol")
+          .map((_, ol) => $(ol).attr("start"))
+          .get(),
+      ).toEqual(["4", "7"]);
+    });
+
+    it("leaves out a list start that isn't a whole number", () => {
+      const { $ } = render(
+        '<ol start="javascript:alert(1)"><li>a</li></ol><ol start="-3"><li>b</li></ol><ol start="1e9"><li>c</li></ol><ol start="99999999999"><li>d</li></ol>',
+      );
+
+      expect($("ol[start]")).toHaveLength(0);
+    });
+
     it("keeps tables, including ones written as HTML", () => {
       const { $ } = render(
         "| Name | Value |\n| --- | --- |\n| One | 1 |\n\n<table><thead><tr><th>A</th></tr></thead><tbody><tr><td>b</td></tr></tbody></table>",
