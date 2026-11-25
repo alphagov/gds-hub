@@ -35,4 +35,5 @@ Ideas raised during phases that are out of scope for the phase that found them.
 - Add routes for `/whats-new/:slug` and `/pages/:slug`, and a `/whats-new` listing. Migrated redirects already point at them and still show page not found. They weren't in Phase 6's brief (Phase 6).
 - Render instance text fields as markdown now that `src/lib/markdown.ts` exists (Phase 6, supersedes the Phase 4 entry above).
 - Rename `waitingForPhase6` in `src/migration/verify.ts` and its report, now it lists pages with no route rather than waiting for Phase 6 (Phase 6).
-- Demote or drop an h1 in a page's markdown body: the page already has its own h1, so a migrated page with a second one has two (Phase 6).
+- Style `details` and `summary` in page bodies with the `govuk-details` classes, and keep `open`. They render unstyled for now (Phase 6).
+- Check the heading ids against the old Hub's anchors on the real build (apostrophes, accents), so migrated `#fragment` links land on the right heading (Phase 6).

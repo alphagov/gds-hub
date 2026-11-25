@@ -9,6 +9,7 @@
 // loads test/fixtures/migration into it. The loader refuses a seeded database,
 // which is why this isn't the database the other tests use.
 
+import { existsSync } from "node:fs";
 import path from "node:path";
 import pg from "pg";
 import { connect } from "../../../src/db/client.js";
@@ -66,4 +67,7 @@ process.env.DATABASE_URL = databaseUrl;
 // The built server starts listening when it is imported. The path is in a
 // variable because TypeScript has no declarations for build output.
 const SERVER_ENTRY = "../../../dist/server.js";
+if (!existsSync(path.join(import.meta.dirname, SERVER_ENTRY))) {
+  throw new Error("dist/server.js doesn't exist: run npm run build first");
+}
 await import(SERVER_ENTRY);

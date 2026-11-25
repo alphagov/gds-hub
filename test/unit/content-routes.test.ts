@@ -20,6 +20,8 @@ async function get(
   content: ContentService = fakeContent(),
   redirects: RedirectService = noRedirects,
 ): Promise<Response> {
+  // A test can make several requests: close the app the last one started.
+  await running?.close();
   running = await startApp(
     createApp({
       config: testConfig,
@@ -181,8 +183,9 @@ describe("a policy page", () => {
     ]);
     const html = await (await get("/policies/device-rules", content)).text();
 
-    expect(html).not.toContain("alert(1)</script>");
+    expect(html).not.toMatch(/<script[^>]*>[^<]*alert/);
     expect(html).not.toContain("javascript:");
+    expect(html).not.toContain("alert(1)");
   });
 });
 

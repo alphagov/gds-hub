@@ -146,6 +146,34 @@ describe("renderMarkdown", () => {
       expect($("h2").attr("class")).not.toContain("govuk-visually-hidden");
     });
 
+    it("keeps phone links", () => {
+      const { $ } = render('<a href="tel:+441234567890">Call us</a>');
+
+      expect($("a").attr("href")).toBe("tel:+441234567890");
+    });
+
+    it("turns a link whose address was removed into plain text, not a dead link", () => {
+      const { $ } = render('<a href="javascript:alert(1)">click</a> and [x](vbscript:y)');
+
+      expect($("a")).toHaveLength(0);
+      expect($("p").text()).toBe("click and x");
+    });
+
+    it("removes an image whose source was removed", () => {
+      const { $ } = render('<img src="http://example.invalid/a.png" alt="A picture"> ![b](data:x)');
+
+      expect($("img")).toHaveLength(0);
+    });
+
+    it("removes a heading with no text, so it can't leave an empty link in the contents", () => {
+      const { $ } = render('<h2></h2>\n\n<h2><a href="/x">  </a></h2>\n\n## Real');
+
+      expect($("h2")).toHaveLength(1);
+      expect(renderMarkdown("<h2></h2>\n\n## Real").headings).toEqual([
+        { id: "real", text: "Real" },
+      ]);
+    });
+
     it("keeps escaped markup as visible text", () => {
       const { $ } = render("&lt;script&gt;alert(1)&lt;/script&gt;");
 
@@ -235,6 +263,52 @@ describe("renderMarkdown", () => {
       expect($("td").last().text()).toBe("b");
     });
 
+    it("marks the header cells of a markdown table as column headers", () => {
+      const { $ } = render("| A | B |\n| --- | --- |\n| c | d |");
+
+      expect(
+        $("th")
+          .map((_, th) => $(th).attr("scope"))
+          .get(),
+      ).toEqual(["col", "col"]);
+    });
+
+    it("keeps the scope of table headers", () => {
+      const { $ } = render(
+        '<table><tr><th scope="col">A</th><th scope="colgroup" colspan="2">B</th></tr><tr><th scope="row">r</th><th scope="rowgroup">g</th><td>x</td></tr></table>',
+      );
+
+      expect(
+        $("th")
+          .map((_, th) => $(th).attr("scope"))
+          .get(),
+      ).toEqual(["col", "colgroup", "row", "rowgroup"]);
+      expect($("th[colspan]").attr("colspan")).toBe("2");
+    });
+
+    it("leaves out a header scope that isn't one of the four", () => {
+      const { $ } = render(
+        '<table><tr><th scope="javascript:alert(1)">A</th><td scope="row">b</td></tr></table>',
+      );
+
+      expect($("[scope]")).toHaveLength(0);
+    });
+
+    it("keeps definition lists, captions, details, strikethrough and small inline markup", () => {
+      const { $ } = render(
+        "<dl><dt>Term</dt><dd>Meaning</dd></dl>\n\n<table><caption>Sizes</caption><tr><td>a</td></tr></table>\n\n<details><summary>More</summary><p>Hidden</p></details>\n\n~~old~~ H<sub>2</sub>O x<sup>2</sup> <kbd>Ctrl</kbd>",
+      );
+
+      expect($("dl dt").text()).toBe("Term");
+      expect($("dl dd").text()).toBe("Meaning");
+      expect($("caption").text()).toBe("Sizes");
+      expect($("details summary").text()).toBe("More");
+      expect($("del").text()).toBe("old");
+      expect($("sub").text()).toBe("2");
+      expect($("sup").text()).toBe("2");
+      expect($("kbd").text()).toBe("Ctrl");
+    });
+
     it("keeps lists, code blocks, quotes, rules and emphasis", () => {
       const { $ } = render(
         "- one\n- two\n\n1. first\n2. second\n\n> quoted\n\n---\n\n**bold** and *italic*\n\n```\ncode\n```",
@@ -254,7 +328,6 @@ describe("renderMarkdown", () => {
     it("adds them to paragraphs, headings, lists, links and tables", () => {
       const { $ } = render(
         [
-          "# One",
           "## Two",
           "### Three",
           "A paragraph with a [link](/a).",
@@ -264,7 +337,6 @@ describe("renderMarkdown", () => {
         ].join("\n\n"),
       );
 
-      expect($("h1").attr("class")).toBe("govuk-heading-l");
       expect($("h2").attr("class")).toBe("govuk-heading-m");
       expect($("h3").attr("class")).toBe("govuk-heading-s");
       expect($("p").first().attr("class")).toBe("govuk-body");
@@ -307,6 +379,35 @@ describe("renderMarkdown", () => {
           .map((_, h) => $(h).attr("id"))
           .get(),
       ).toEqual(["scope", "scope-2", "scope-3"]);
+    });
+
+    it("gives h4 to h6 headings ids too, so links to them work", () => {
+      const { $ } = render("#### Limits\n\n##### Small print\n\n###### Notes\n\n[Limits](#limits)");
+
+      expect($("h4").attr("id")).toBe("limits");
+      expect($("h5").attr("id")).toBe("small-print");
+      expect($("h6").attr("id")).toBe("notes");
+      expect(renderMarkdown("#### Limits").headings).toEqual([]);
+    });
+
+    it("numbers ids across heading levels", () => {
+      const { $ } = render("## Limits\n\n#### Limits");
+
+      expect($("h2").attr("id")).toBe("limits");
+      expect($("h4").attr("id")).toBe("limits-2");
+    });
+
+    it("leaves apostrophes out of ids", () => {
+      const { headings } = renderMarkdown("## What's new\n\n## Who\u2019s who");
+
+      expect(headings.map((heading) => heading.id)).toEqual(["whats-new", "whos-who"]);
+    });
+
+    it("makes a heading in the body an h2, as the page has its own h1", () => {
+      const { $ } = render("# Title\n\n<h1>Another</h1>\n\nText");
+
+      expect($("h1")).toHaveLength(0);
+      expect($("h2.govuk-heading-m")).toHaveLength(2);
     });
 
     it("lists the h2 headings, with their ids, for the on-page contents", () => {

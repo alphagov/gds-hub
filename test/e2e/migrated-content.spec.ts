@@ -15,14 +15,14 @@ test("a migrated policy renders", async ({ page }) => {
 test("migrated guidance renders", async ({ page }) => {
   await page.goto("/guidance/widgets");
 
-  await expect(page.getByRole("heading", { level: 1 })).not.toHaveText("Page not found");
-  await expect(page.getByRole("main")).toContainText("Widgets");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Widgets");
+  await expect(page.getByRole("heading", { level: 2, name: "Set up" })).toBeVisible();
 });
 
 test("a migrated service guide renders", async ({ page }) => {
   await page.goto("/guidance/kettle-guide");
 
-  await expect(page.getByRole("heading", { level: 1 })).not.toHaveText("Page not found");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Kettle Board guide");
 });
 
 test("an old Hub address takes you to its migrated page", async ({ page }) => {
