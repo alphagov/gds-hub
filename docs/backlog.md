@@ -3,7 +3,6 @@
 Ideas raised during phases that are out of scope for the phase that found them.
 
 - Choose and adopt a structured logging library behind the `Logger` interface (Phase 0).
-- Configure Express `trust proxy` for the ALB and CloudFront chain so `req.ip` is correct (Phase 0).
 - Add a readiness check that verifies the database connection, separate from `/health` (Phase 0).
 - Log HTTP server `error` events raised after startup in `src/server.ts`. The `listen` callback only handles startup failures (Phase 0).
 - Add a feedback link to the phase banner once there is somewhere for feedback to go (Phase 1).
@@ -38,3 +37,4 @@ Ideas raised during phases that are out of scope for the phase that found them.
 - Check the heading ids against the old Hub's anchors on the real build (apostrophes, accents), so migrated `#fragment` links land on the right heading (Phase 6).
 - Add a check that fails the build if a 12-digit AWS account ID or an ARN with one appears in tracked files, outside the documentation example, like `check:no-migration-data` (Phase 14).
 - Run Terraform plan and apply for the deploy only in the protected GitHub environment, store the values it needs as environment secrets rather than variables, and never upload plan files as artifacts, because resource attributes still print in logs when outputs are sensitive (Phase 14).
+- Add the data migration steps (sync inputs, register the task definition, run inventory, load and verify) to the `docs/deployment.md` that Part 2 adds, and point `docs/migration.md` at them (Phase 13a, for Part 2).

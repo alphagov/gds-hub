@@ -7,6 +7,7 @@ const configSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
   APP_VERSION: z.string().min(1).default("dev"),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).optional(),
   DATABASE_HOST: z
     .string()
@@ -32,6 +33,8 @@ export interface Config {
   readonly port: number;
   readonly logLevel: LogLevel;
   readonly version: string;
+  /** How many proxies sit between the internet and the app. 0 means none, so no forwarded header is trusted. */
+  readonly trustProxyHops: number;
   readonly databaseUrl: string;
 }
 
@@ -69,6 +72,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     port: data.PORT,
     logLevel: data.LOG_LEVEL,
     version: data.APP_VERSION,
+    trustProxyHops: data.TRUST_PROXY_HOPS,
     databaseUrl,
   });
 }

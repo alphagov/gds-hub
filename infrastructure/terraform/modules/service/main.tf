@@ -52,6 +52,7 @@ resource "aws_ecs_express_gateway_service" "this" {
   task_role_arn           = var.app_task_role_arn
 
   cpu                   = var.cpu
+  cpu_architecture      = var.cpu_architecture
   memory                = var.memory
   health_check_path     = var.health_check_path
   wait_for_steady_state = true
@@ -119,7 +120,7 @@ resource "aws_ecs_task_definition" "schema_migration" {
 
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture        = "X86_64"
+    cpu_architecture        = var.cpu_architecture
   }
 
   container_definitions = jsonencode([
@@ -159,7 +160,7 @@ resource "aws_ecs_task_definition" "data_migration" {
 
   runtime_platform {
     operating_system_family = "LINUX"
-    cpu_architecture        = "X86_64"
+    cpu_architecture        = var.cpu_architecture
   }
 
   container_definitions = jsonencode([

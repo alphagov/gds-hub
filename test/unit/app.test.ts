@@ -83,6 +83,26 @@ describe("app", () => {
     });
   });
 
+  describe("trust proxy", () => {
+    function appWithHops(trustProxyHops: number): ReturnType<typeof createApp> {
+      return createApp({
+        config: { ...testConfig, trustProxyHops },
+        logger: silentLogger,
+        catalogue: fakeCatalogue(),
+        content: fakeContent(),
+        redirects: noRedirects,
+      });
+    }
+
+    it("trusts no proxy by default", () => {
+      expect(appWithHops(0).get("trust proxy")).toBe(0);
+    });
+
+    it("trusts the number of hops in the config", () => {
+      expect(appWithHops(1).get("trust proxy")).toBe(1);
+    });
+  });
+
   describe("content security policy", () => {
     it("allows the inline script only through a nonce that changes on every request", async () => {
       const nonces: string[] = [];

@@ -12,6 +12,7 @@ A short summary of each completed phase. The full handover for each phase (what 
 | P5a   | Migration: inventory        | 2026-11-11 | Code complete              | [progress-phase5.md](progress-phase5.md)                                    |
 | P5b   | Migration: load and verify  | 2026-11-12 | Code complete              | [progress-phase5.md](progress-phase5.md#part-b-loader-redirects-and-verify) |
 | P6    | Content pages               | 2026-11-24 | Code complete              | [progress-phase6.md](progress-phase6.md)                                    |
+| P13a  | AWS first deploy (Part 1)   | 2026-11-26 | Code complete, not yet run | [progress-phase13a.md](progress-phase13a.md)                                |
 
 ## Phase 0: Foundations and tooling (2026-11-04)
 
@@ -115,3 +116,11 @@ The Phase 2 schema needs two inputs from the developer. They don't exist yet. Wh
 
 - A structure-only summary of how the current static Hub is built. It should cover YAML files and fields, implied relationships and their cardinality (for example, tools used by more than one team), how templates combine data into pages, URL patterns and rough counts. Invented example values only.
 - The developer's prototype schema, written in Ruby, to use as a starting point and translate to Drizzle. Where it differs from the relationships the YAML data implies, record the decision in the Phase 2 handover.
+
+## Phase 13a: Running the app on AWS, Part 1 (2026-11-26)
+
+- Terraform for the development account (network, RDS, secrets, ECR, IAM, WAF, Express service and migration task definitions, ARM64), applied except the Express service.
+- The app builds its database URL from `DATABASE_*` parts with `sslmode=verify-full`. The image carries the RDS CA bundle (pinned SHA-256) and `drizzle/`.
+- New `TRUST_PROXY_HOPS` setting (default 0, set to 1 behind the load balancer), applied as Express's `trust proxy`.
+- The manual first-deploy steps are in the phase file. The deploy workflow (Part 2) doesn't exist yet.
+- **Not run in the sandbox:** `docker build`, Terraform and AWS CLI steps. The developer runs them. See [progress-phase13a.md](progress-phase13a.md#needs-the-developer).

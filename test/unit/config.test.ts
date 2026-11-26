@@ -19,6 +19,7 @@ describe("loadConfig", () => {
       port: 3000,
       logLevel: "info",
       version: "dev",
+      trustProxyHops: 0,
       databaseUrl: validEnv.DATABASE_URL,
     });
   });
@@ -36,6 +37,22 @@ describe("loadConfig", () => {
       port: 8080,
       logLevel: "warn",
       version: "abc123",
+    });
+  });
+
+  describe("TRUST_PROXY_HOPS", () => {
+    it("reads a number of hops", () => {
+      expect(loadConfig({ ...validEnv, TRUST_PROXY_HOPS: "1" }).trustProxyHops).toBe(1);
+    });
+
+    it("treats an empty value as the default of 0", () => {
+      expect(loadConfig({ ...validEnv, TRUST_PROXY_HOPS: "" }).trustProxyHops).toBe(0);
+    });
+
+    it.each(["-1", "1.5", "two", "true"])("rejects %s", (value) => {
+      const error = captureError(() => loadConfig({ ...validEnv, TRUST_PROXY_HOPS: value }));
+      expect(error).toBeInstanceOf(ConfigError);
+      expect((error as ConfigError).issues.join("\n")).toMatch(/TRUST_PROXY_HOPS/);
     });
   });
 

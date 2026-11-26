@@ -114,6 +114,17 @@ variable "cpu" {
   default     = 512
 }
 
+variable "cpu_architecture" {
+  description = "CPU architecture of the app and migration tasks. The image must be built for it."
+  type        = string
+  default     = "ARM64"
+
+  validation {
+    condition     = contains(["ARM64", "X86_64"], var.cpu_architecture)
+    error_message = "cpu_architecture must be ARM64 or X86_64."
+  }
+}
+
 variable "memory" {
   description = "Memory in MiB for each app task."
   type        = number

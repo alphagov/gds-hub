@@ -3,7 +3,7 @@
 # Usage: .sbx/claude-sandbox.sh [--recreate] [NAME]
 set -eu
 
-KIT="git+ssh://git@github.com/alphagov/gds-claude-sbx-kit.git#ref=1.0.0"
+KIT="git+ssh://git@github.com/alphagov/gds-claude-sbx-kit.git#ref=latest"
 
 recreate=false
 if [ "${1:-}" = "--recreate" ]; then
