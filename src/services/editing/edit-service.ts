@@ -55,7 +55,12 @@ export interface EditService {
     actor: Actor,
     expectedUpdatedAt: Date,
   ): Promise<EditRecord>;
-  remove(entity: EditEntityKey, id: number, actor: Actor): Promise<EditRecord>;
+  remove(
+    entity: EditEntityKey,
+    id: number,
+    actor: Actor,
+    expectedUpdatedAt: Date,
+  ): Promise<EditRecord>;
 }
 
 /** The repositories the editing pages use. */
@@ -74,7 +79,7 @@ interface RowRepository {
     actor: Actor,
     options: { readonly expectedUpdatedAt: Date },
   ): Promise<{ readonly record: Row }>;
-  remove(id: number, actor: Actor): Promise<Row>;
+  remove(id: number, actor: Actor, options: { readonly expectedUpdatedAt: Date }): Promise<Row>;
 }
 
 function titleOf(entity: EditEntity, row: Row): string {
@@ -172,8 +177,8 @@ export function createEditService(repositories: EditRepositories): EditService {
       return summary(EDIT_ENTITIES[key], record);
     },
 
-    remove: async (key, id, actor) => {
-      const removed = await repositoryFor(key).remove(id, actor);
+    remove: async (key, id, actor, expectedUpdatedAt) => {
+      const removed = await repositoryFor(key).remove(id, actor, { expectedUpdatedAt });
       return summary(EDIT_ENTITIES[key], removed);
     },
   };

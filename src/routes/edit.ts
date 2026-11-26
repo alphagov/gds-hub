@@ -42,6 +42,9 @@ const WRITE_PROBLEMS: Readonly<Partial<Record<RepositoryError["kind"], string>>>
 const STALE_PROBLEM =
   "This record was changed by someone else since you opened it, so your changes were not saved. Open the latest version, then make your changes again.";
 
+const DELETE_STALE_PROBLEM =
+  "This record was changed by someone else since you opened this page, so it was not deleted. Check the latest version, then delete it again if you still want to.";
+
 function entityFrom(req: Request): EditEntityKey {
   const key = editEntityFrom(req.params.entity);
   if (key === undefined) throw new HttpError(404);
@@ -275,19 +278,24 @@ export function editRouter(
 
   router.post(
     "/edit/:entity/:id/delete",
+    form,
     route(async (req, res) => {
       const key = entityFrom(req);
       const id = idFrom(req);
+      const loaded = loadedAt(formBody(req));
       try {
-        await service.remove(key, id, actorOf(res));
+        await service.remove(key, id, actorOf(res), loaded.date);
         res.redirect(303, `${editPaths.list(key)}?saved=deleted`);
       } catch (error) {
-        if (repositoryProblem(error, ["in_use"]) === undefined) throw error;
+        const failure = repositoryProblem(error, ["in_use", "stale"]);
+        if (failure === undefined) throw error;
         await showDelete(
           res,
           key,
           id,
-          `This ${EDIT_ENTITIES[key].singular} is still in use, so it can’t be deleted. Remove it from whatever uses it first.`,
+          failure.kind === "stale"
+            ? DELETE_STALE_PROBLEM
+            : `This ${EDIT_ENTITIES[key].singular} is still in use, so it can’t be deleted. Remove it from whatever uses it first.`,
         );
       }
     }),

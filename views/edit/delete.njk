@@ -14,6 +14,7 @@
       <p class="govuk-body">This can’t be undone from this page. Links from this record to other records are removed with it. Every removal is recorded in the audit log.</p>
 
       <form method="post" action="{{ page.action }}" novalidate>
+        <input type="hidden" name="updatedAt" value="{{ page.updatedAt }}">
         <div class="govuk-button-group">
           {{ govukButton({ text: "Delete", classes: "govuk-button--warning", preventDoubleClick: true }) }}
           <a class="govuk-link" href="{{ page.cancel.href }}">{{ page.cancel.text }}</a>

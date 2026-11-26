@@ -351,7 +351,7 @@ describe("removing", () => {
       testModeActor,
     );
 
-    await service.remove("vendors", created.id, testModeActor);
+    await service.remove("vendors", created.id, testModeActor, created.updatedAt);
 
     expect(await service.find("vendors", created.id)).toBeUndefined();
     const entries = await auditFor("vendor", created.id);
@@ -362,9 +362,40 @@ describe("removing", () => {
   it("refuses to delete a record that something still uses, and leaves it", async () => {
     const vendor = (await service.list("vendors")).find((record) => record.title === "Compass Co");
 
-    const error = await rejection(service.remove("vendors", vendor?.id ?? 0, testModeActor));
+    const error = await rejection(
+      service.remove("vendors", vendor?.id ?? 0, testModeActor, vendor?.updatedAt ?? new Date(0)),
+    );
 
     expect(error.kind).toBe("in_use");
     expect(await service.find("vendors", vendor?.id ?? 0)).toBeDefined();
+  });
+
+  it("refuses to delete a version that has changed since the editor confirmed, and leaves it", async () => {
+    const created = await service.create(
+      "vendors",
+      {
+        slug: "changed-meanwhile",
+        name: "Changed meanwhile",
+        description: null,
+        url: null,
+        supportContact: null,
+        dataProtectionContact: null,
+      },
+      testModeActor,
+    );
+    await service.update(
+      "vendors",
+      created.id,
+      { name: "Changed by someone else" },
+      testModeActor,
+      created.updatedAt,
+    );
+
+    const error = await rejection(
+      service.remove("vendors", created.id, testModeActor, created.updatedAt),
+    );
+
+    expect(error.kind).toBe("stale");
+    expect((await service.find("vendors", created.id))?.title).toBe("Changed by someone else");
   });
 });

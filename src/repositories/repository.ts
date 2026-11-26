@@ -1,4 +1,4 @@
-import { asc, eq, getTableColumns, getTableName, sql } from "drizzle-orm";
+import { and, asc, desc, eq, getTableColumns, getTableName, sql } from "drizzle-orm";
 import { getTableConfig, type PgColumn, type PgTable } from "drizzle-orm/pg-core";
 import type { Transaction } from "../db/client.js";
 import {
@@ -7,6 +7,7 @@ import {
   type AuditedTableName,
   type EntityType,
 } from "../db/entity-types.js";
+import { auditLog } from "../db/schema/index.js";
 import { APP_TABLES } from "../db/tables.js";
 import { assertValidActor, type Actor } from "../services/audit/actor.js";
 import { changedFields, valuesEqual } from "../services/audit/changes.js";
@@ -52,6 +53,13 @@ export interface WriteOptions {
    * update is refused with RepositoryError("stale") and nothing is written.
    */
   readonly expectedUpdatedAt?: Date | undefined;
+  /**
+   * For an update or removal: who last changed the record. Checked against the
+   * audit log once the record is locked, so a change committed since the caller
+   * looked is never overwritten. If someone else made the last change, the
+   * write is refused with RepositoryError("stale") and nothing is written.
+   */
+  readonly expectedLastActor?: string | undefined;
 }
 
 export interface ListOptions {
@@ -204,6 +212,21 @@ async function changeTime(tx: Transaction): Promise<Date> {
   return new Date(Number(row.milliseconds));
 }
 
+/** Who made the latest change to a record, as the audit log has it. */
+async function latestActor(
+  tx: Transaction,
+  entityType: EntityType,
+  id: number,
+): Promise<string | undefined> {
+  const [latest] = await tx
+    .select({ actor: auditLog.actorSubject })
+    .from(auditLog)
+    .where(and(eq(auditLog.entityType, entityType), eq(auditLog.entityId, id)))
+    .orderBy(desc(auditLog.createdAt), desc(auditLog.id))
+    .limit(1);
+  return latest?.actor;
+}
+
 /**
  * The time to give an update. The database clock is read in milliseconds, so
  * two writes in the same millisecond would leave updated_at as it was, and a
@@ -274,6 +297,27 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
     const [row] = await tx.select().from(table).where(eq(table.id, id)).for("update");
     if (row === undefined) throw new RepositoryError("not_found", entityType);
     return row;
+  };
+
+  /** Refuses a write if the record has changed since the caller read it. */
+  const assertCurrent = (before: Row, options: WriteOptions): void => {
+    if (
+      options.expectedUpdatedAt !== undefined &&
+      !valuesEqual(before.updatedAt, options.expectedUpdatedAt)
+    ) {
+      throw new RepositoryError("stale", entityType);
+    }
+  };
+
+  const assertLastActor = async (
+    tx: Transaction,
+    id: number,
+    options: WriteOptions,
+  ): Promise<void> => {
+    if (options.expectedLastActor === undefined) return;
+    if ((await latestActor(tx, entityType, id)) !== options.expectedLastActor) {
+      throw new RepositoryError("stale", entityType);
+    }
   };
 
   /**
@@ -357,12 +401,8 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
       try {
         return await runInTransaction(executor, async (tx) => {
           const before = await lockRow(tx, id);
-          if (
-            options.expectedUpdatedAt !== undefined &&
-            !valuesEqual(before.updatedAt, options.expectedUpdatedAt)
-          ) {
-            throw new RepositoryError("stale", entityType);
-          }
+          assertCurrent(before, options);
+          await assertLastActor(tx, id, options);
           const requested = Object.keys(input).filter(
             (field) => !valuesEqual(before[field], input[field]),
           );
@@ -406,11 +446,13 @@ function bind(details: TableDetails, executor: Executor): TableAccess {
       try {
         return await runInTransaction(executor, async (tx) => {
           const before = await lockRow(tx, id);
+          assertCurrent(before, options);
+          await assertLastActor(tx, id, options);
           // Locking the record stops new links to it being added meanwhile:
           // adding one has to wait for this transaction, then fails.
           await removeDependents(tx, id, actor);
 
-          const changedAt = await changeTime(tx);
+          const changedAt = await nextVersionTime(tx, before.updatedAt);
           const deleted = firstRow(
             await tx.delete(table).where(eq(table.id, id)).returning(),
             "removed record",

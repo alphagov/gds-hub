@@ -306,6 +306,8 @@ export interface EditFormViewModel extends CataloguePageViewModel {
 export interface EditDeleteViewModel extends CataloguePageViewModel {
   readonly errors: readonly ErrorSummaryItem[];
   readonly action: string;
+  /** When the record was last changed (ISO 8601), sent back so a delete of a newer version is refused. */
+  readonly updatedAt: string;
   readonly cancel: LinkItem;
 }
 

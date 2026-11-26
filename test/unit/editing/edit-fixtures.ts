@@ -103,8 +103,8 @@ export function fakeEditService(overrides: Partial<EditService> = {}): FakeEditS
       writes.push({ operation: "update", entity, id, values, actor, expectedUpdatedAt });
       return Promise.resolve({ id, title: "Updated record", updatedAt: CHANGED_AT });
     },
-    remove: (entity, id, actor) => {
-      writes.push({ operation: "remove", entity, id, actor });
+    remove: (entity, id, actor, expectedUpdatedAt) => {
+      writes.push({ operation: "remove", entity, id, actor, expectedUpdatedAt });
       return Promise.resolve({ id, title: "Removed record", updatedAt: CHANGED_AT });
     },
     ...overrides,

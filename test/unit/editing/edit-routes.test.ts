@@ -459,6 +459,15 @@ describe("saving changes", () => {
   });
 });
 
+describe("adding a page", () => {
+  it("starts with draft chosen as the status", async () => {
+    const $ = cheerio.load(await (await get("/edit/pages/new")).text());
+
+    expect($("select[name=status] option[selected]").attr("value")).toBe("draft");
+    expect($("select[name=status] option[value='']").length).toBe(0);
+  });
+});
+
 describe("deleting", () => {
   it("asks for confirmation first, naming the record, and says it can't be undone from the page", async () => {
     const html = await (await get("/edit/vendors/3/delete")).text();
@@ -470,7 +479,9 @@ describe("deleting", () => {
   });
 
   it("deletes on a POST, then redirects to the list", async () => {
-    const { response, service } = await post("/edit/vendors/3/delete", {});
+    const { response, service } = await post("/edit/vendors/3/delete", {
+      updatedAt: CHANGED_AT.toISOString(),
+    });
 
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe("/edit/vendors?saved=deleted");
@@ -480,12 +491,45 @@ describe("deleting", () => {
       id: 3,
       actor: { email: TEST_MODE_ACTOR_EMAIL },
     });
+    expect(service.writes[0]?.expectedUpdatedAt?.toISOString()).toBe(CHANGED_AT.toISOString());
+  });
+
+  it("sends the version the editor is confirming back with the confirmation", async () => {
+    const html = await (await get("/edit/vendors/3/delete")).text();
+
+    expect(html).toMatch(/<input[^>]*name="updatedAt"[^>]*value="[^"]+"/);
+  });
+
+  it("refuses a confirmation that doesn't say which version it is for", async () => {
+    const { response, service } = await post("/edit/vendors/3/delete", {});
+
+    expect(response.status).toBe(400);
+    expect(service.writes).toEqual([]);
+  });
+
+  it("says when the record changed since the confirmation was opened, and leaves it", async () => {
+    const service = fakeEditService({ remove: () => Promise.reject(repositoryError("stale")) });
+
+    const { response } = await post(
+      "/edit/vendors/3/delete",
+      { updatedAt: CHANGED_AT.toISOString() },
+      { service },
+    );
+    const html = await response.text();
+
+    expect(response.status).toBe(409);
+    expect(html).toMatch(/changed by someone else/i);
+    expect(html).toContain(TEST_MODE_WARNING);
   });
 
   it("says when something still uses the record, and leaves it", async () => {
     const service = fakeEditService({ remove: () => Promise.reject(repositoryError("in_use")) });
 
-    const { response } = await post("/edit/vendors/3/delete", {}, { service });
+    const { response } = await post(
+      "/edit/vendors/3/delete",
+      { updatedAt: CHANGED_AT.toISOString() },
+      { service },
+    );
     const html = await response.text();
 
     expect(response.status).toBe(409);
@@ -506,7 +550,7 @@ describe("requests from other sites", () => {
     for (const [path, body] of [
       ["/edit/vendors", VALID_VENDOR],
       ["/edit/vendors/3", { name: "x", updatedAt: CHANGED_AT.toISOString() }],
-      ["/edit/vendors/3/delete", {}],
+      ["/edit/vendors/3/delete", { updatedAt: CHANGED_AT.toISOString() }],
     ] as const) {
       const { response, service } = await post(path, { ...body }, { headers });
 

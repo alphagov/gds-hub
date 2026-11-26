@@ -50,6 +50,25 @@ You should get a response like:
 
 To stop everything, run `docker compose down`. Add `-v` to delete the database volume as well.
 
+### Try editing in the browser
+
+Editing is off by default. To try it, add these two lines to `.env` (create it with `cp .env.example .env` if you haven't):
+
+```
+EDIT_MODE=test
+ALLOW_UNAUTHENTICATED_EDITING=yes
+```
+
+Then load the sample data and restart the app, so it picks up the new values:
+
+```bash
+set -a; . ./.env; set +a
+npm run db:reset
+docker compose up -d --build
+```
+
+Open <http://localhost:3000/edit>. Anyone who can reach the app can edit while this is on, so only do this on your own machine. Remove the two lines (or leave them blank) and run `docker compose up -d` again to switch editing off. See [Editing in test mode](#editing-in-test-mode).
+
 ## Run the app locally for development
 
 1. Copy the example environment file:
@@ -150,10 +169,14 @@ All configuration comes from environment variables. The app checks them when it 
 
 Docker Compose also reads these from `.env`:
 
-| Variable        | Default | Description                                 |
-| --------------- | ------- | ------------------------------------------- |
-| `APP_HOST_PORT` | `3000`  | Port on your machine that serves the app    |
-| `DB_HOST_PORT`  | `5432`  | Port on your machine that serves PostgreSQL |
+| Variable                        | Default | Description                                                       |
+| ------------------------------- | ------- | ----------------------------------------------------------------- |
+| `APP_HOST_PORT`                 | `3000`  | Port on your machine that serves the app                          |
+| `DB_HOST_PORT`                  | `5432`  | Port on your machine that serves PostgreSQL                       |
+| `EDIT_MODE`                     | blank   | Passed to the app container. See [Editing](#editing-in-test-mode) |
+| `ALLOW_UNAUTHENTICATED_EDITING` | blank   | Passed to the app container. Needed as well as `EDIT_MODE=test`   |
+
+The app container only gets the variables listed in `docker-compose.yml`, so a new setting in `.env` has no effect in Docker until it is added there.
 
 Never commit `.env` or any real credentials. In AWS, secrets come from Secrets Manager.
 
@@ -239,6 +262,10 @@ To find out what is using a port, run `lsof -nP -iTCP:5432 -sTCP:LISTEN`.
 **The app exits straight away with "invalid configuration"**
 
 A required environment variable is missing or invalid. The log message names each one. Check your `.env` file and make sure you loaded it into your shell.
+
+**`/edit` gives page not found, or the app container exits straight away after you set `EDIT_MODE=test`**
+
+Page not found means editing is off: the container didn't get `EDIT_MODE=test`. Check both variables are in `.env` and that you restarted with `docker compose up -d --build`. If the container exits, run `docker compose logs app`. The Docker image runs in production mode, so `EDIT_MODE=test` also needs `ALLOW_UNAUTHENTICATED_EDITING=yes`. Run `docker compose config` to see the values the container will get.
 
 **Pages are empty or fail with "relation does not exist"**
 

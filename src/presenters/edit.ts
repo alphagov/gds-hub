@@ -265,6 +265,7 @@ export function presentEditDelete(
     hasError: problems.length > 0,
     errors: problems.map((text) => ({ text })),
     action: editPaths.delete(key, record.id),
+    updatedAt: record.updatedAt.toISOString(),
     cancel: { text: "Cancel", href: editPaths.record(key, record.id) },
   };
 }
