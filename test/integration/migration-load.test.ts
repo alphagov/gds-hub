@@ -389,6 +389,47 @@ describe("loading the fixtures into an empty database", () => {
     });
   });
 
+  it("skips a record an editor saves after the migration has read its snapshot", async () => {
+    const kettle = await toolId("kettle-board");
+    editData(
+      "tools.yml",
+      "A shared board for planning example work.",
+      "A shared board for planning example releases.",
+    );
+    // An editor's save lands between the migration's snapshot and its write.
+    const editorSavesAfterSnapshot: typeof connection.repositories.transaction = (work) =>
+      connection.repositories.transaction((tx) =>
+        work({
+          ...tx,
+          migration: {
+            ...tx.migration,
+            snapshot: async () => {
+              const snapshot = await tx.migration.snapshot();
+              await connection.repositories.tools.update(
+                kettle,
+                { name: "Kettle Board (saved meanwhile)" },
+                EDITOR,
+              );
+              return snapshot;
+            },
+          },
+        }),
+      );
+
+    const outcome = await loadPlan(
+      await workingCopyPlan(),
+      { transaction: editorSavesAfterSnapshot },
+      { apply: true, runId: newRunId(new Date()) },
+    );
+
+    expect(changed(outcome)).toContainEqual(
+      expect.objectContaining({ entity: "tool", key: "kettle-board", action: "skipped" }),
+    );
+    const [row] = await testDb.db.select().from(tools).where(eq(tools.id, kettle));
+    expect(row?.name).toBe("Kettle Board (saved meanwhile)");
+    expect(row?.description).not.toContain("releases");
+  });
+
   it("reports a record that's only in the database, and never deletes it", async () => {
     const made = await connection.repositories.tools.create(
       { key: "hand-made-tool", slug: "hand-made-tool", name: "Hand-made tool" },

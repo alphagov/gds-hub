@@ -10,6 +10,7 @@ export const testConfig: Config = Object.freeze({
   logLevel: "error",
   version: "1.2.3-test",
   databaseUrl: "postgres://user:pass@localhost:5432/test",
+  editMode: "off",
 });
 
 export interface RunningApp {

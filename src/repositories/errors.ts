@@ -1,7 +1,7 @@
 import type { EntityType } from "../db/entity-types.js";
 
 export type RepositoryErrorKind =
-  "not_found" | "duplicate" | "in_use" | "invalid_reference" | "invalid_value" | "failed";
+  "not_found" | "duplicate" | "in_use" | "invalid_reference" | "invalid_value" | "stale" | "failed";
 
 export type RepositoryOperation = "read" | "create" | "update" | "remove";
 
@@ -14,6 +14,7 @@ const DESCRIPTIONS: Readonly<Record<RepositoryErrorKind, string>> = {
   in_use: "the record is still in use",
   invalid_reference: "a linked record does not exist",
   invalid_value: "a value is not allowed",
+  stale: "the record has changed since it was read",
   failed: "the database operation failed",
 };
 

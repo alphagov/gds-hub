@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
+const EDIT_MODES = ["off", "test"] as const;
 
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
@@ -8,9 +9,17 @@ const configSchema = z.object({
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
   APP_VERSION: z.string().min(1).default("dev"),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  EDIT_MODE: z.enum(EDIT_MODES).default("off"),
+  ALLOW_UNAUTHENTICATED_EDITING: z.enum(["yes"]).optional(),
 });
 
 export type LogLevel = (typeof LOG_LEVELS)[number];
+
+/**
+ * Whether people can edit in the browser. "test" switches on editing without
+ * checking who is signed in, for releases before sign-in is delivered.
+ */
+export type EditMode = (typeof EDIT_MODES)[number];
 
 export interface Config {
   readonly nodeEnv: "development" | "test" | "production";
@@ -18,6 +27,7 @@ export interface Config {
   readonly logLevel: LogLevel;
   readonly version: string;
   readonly databaseUrl: string;
+  readonly editMode: EditMode;
 }
 
 export class ConfigError extends Error {
@@ -43,11 +53,23 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
 
   const data = result.data;
+  // Unauthenticated editing in production has to be asked for twice, so one
+  // stray variable can't open the Hub to anyone who can reach it.
+  if (
+    data.NODE_ENV === "production" &&
+    data.EDIT_MODE === "test" &&
+    data.ALLOW_UNAUTHENTICATED_EDITING !== "yes"
+  ) {
+    throw new ConfigError([
+      "EDIT_MODE: test in production also needs ALLOW_UNAUTHENTICATED_EDITING=yes",
+    ]);
+  }
   return Object.freeze({
     nodeEnv: data.NODE_ENV,
     port: data.PORT,
     logLevel: data.LOG_LEVEL,
     version: data.APP_VERSION,
     databaseUrl: data.DATABASE_URL,
+    editMode: data.EDIT_MODE,
   });
 }

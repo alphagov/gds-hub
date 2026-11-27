@@ -52,6 +52,8 @@ export interface PageViewModel {
   readonly section?: SectionKey;
   /** Shown down the left of the page. Error pages have none. */
   readonly contents?: ContentsViewModel;
+  /** The page shows an error summary: its document title starts with "Error: ". */
+  readonly hasError?: boolean;
 }
 
 /** Read by layouts/listing.njk. */
@@ -253,6 +255,62 @@ export interface ContentPageViewModel extends PageViewModel {
   readonly bodyHtml: SafeHtml;
 }
 
+/** The kinds of record, each with a link and a line saying what it holds. */
+export interface EditIndexViewModel extends ListingViewModel {
+  readonly description: string;
+}
+
+/** A kind of record's list, with a link to add one. */
+export interface EditListViewModel extends PageViewModel {
+  /** The result of the last change, such as "The vendor was deleted", if there was one. */
+  readonly success: string | null;
+  readonly add: LinkItem;
+  readonly items: readonly LinkItem[];
+  readonly emptyText: string;
+}
+
+/** One problem in an error summary. Without an href it isn't about a single field. */
+export interface ErrorSummaryItem {
+  readonly text: string;
+  readonly href?: string;
+}
+
+/**
+ * One form field: the GOV.UK Frontend component to use and its parameters,
+ * which the presenter has already filled in (label, hint, value, error).
+ */
+export interface EditFieldViewModel {
+  readonly component: "input" | "textarea" | "select" | "checkboxes";
+  readonly params: Readonly<Record<string, unknown>>;
+}
+
+/** The form for adding a record or changing one. */
+export interface EditFormViewModel extends CataloguePageViewModel {
+  readonly success: string | null;
+  readonly errors: readonly ErrorSummaryItem[];
+  /** Where the form posts to. */
+  readonly action: string;
+  /** When the record was last changed (ISO 8601), sent back so a clash is noticed. Null for a new record. */
+  readonly updatedAt: string | null;
+  /** The slug of a record that exists, shown as text because it can't be changed. */
+  readonly slug: SummaryRow | null;
+  readonly fields: readonly EditFieldViewModel[];
+  readonly cancel: LinkItem;
+  /** After a clash with someone else's change: where to see the latest version. */
+  readonly latest: LinkItem | null;
+  /** The link to delete the record. Null for a new one. */
+  readonly delete: LinkItem | null;
+}
+
+/** The page that asks for confirmation before a record is deleted. */
+export interface EditDeleteViewModel extends CataloguePageViewModel {
+  readonly errors: readonly ErrorSummaryItem[];
+  readonly action: string;
+  /** When the record was last changed (ISO 8601), sent back so a delete of a newer version is refused. */
+  readonly updatedAt: string;
+  readonly cancel: LinkItem;
+}
+
 export interface ErrorViewModel extends PageViewModel {
   /** Shown on the 500 page so users can quote it. */
   readonly requestId?: string;
@@ -272,6 +330,10 @@ export interface Views {
   "pages/section.njk": SectionViewModel;
   "pages/content-listing.njk": ContentListingViewModel;
   "pages/content-page.njk": ContentPageViewModel;
+  "edit/index.njk": EditIndexViewModel;
+  "edit/list.njk": EditListViewModel;
+  "edit/form.njk": EditFormViewModel;
+  "edit/delete.njk": EditDeleteViewModel;
   "errors/403.njk": ErrorViewModel;
   "errors/404.njk": ErrorViewModel;
   "errors/500.njk": ErrorViewModel;

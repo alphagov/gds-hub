@@ -1,0 +1,17 @@
+{# The records of one kind, with a link to add one. #}
+{% extends "layouts/listing.njk" %}
+{% from "govuk/components/button/macro.njk" import govukButton %}
+{% from "partials/edit-notices.njk" import successBanner %}
+
+{% block heading %}
+  {{ successBanner(page.success) }}
+  {{ super() }}
+{% endblock %}
+
+{% block intro %}
+  {{ govukButton({ text: page.add.text, href: page.add.href }) }}
+{% endblock %}
+
+{% block emptyState %}
+  <p class="govuk-body">{{ page.emptyText }}</p>
+{% endblock %}
