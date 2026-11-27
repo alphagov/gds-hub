@@ -12,6 +12,7 @@ A short summary of each completed phase. The full handover for each phase (what 
 | P5a   | Migration: inventory        | 2026-11-11 | Code complete              | [progress-phase5.md](progress-phase5.md)                                    |
 | P5b   | Migration: load and verify  | 2026-11-12 | Code complete              | [progress-phase5.md](progress-phase5.md#part-b-loader-redirects-and-verify) |
 | P6    | Content pages               | 2026-11-24 | Code complete              | [progress-phase6.md](progress-phase6.md)                                    |
+| P8    | Web editing (test mode)     | 2026-11-25 | Code complete, JWT to do   | [progress-phase8.md](progress-phase8.md)                                    |
 | P13a  | AWS first deploy (Part 1)   | 2026-11-26 | Code complete, not yet run | [progress-phase13a.md](progress-phase13a.md)                                |
 
 ## Phase 0: Foundations and tooling (2026-11-04)
@@ -107,6 +108,15 @@ A short summary of each completed phase. The full handover for each phase (what 
 - The XSS tests cover around 50 attack inputs. Playwright covers the seed journeys, and a second app on a database loaded from the migration fixtures (`gdshub_e2e_migrated`) covers a migrated policy, guidance page and service guide, and their old addresses. axe scans every new page type, with and without JavaScript.
 - Out of scope, by decision: `/whats-new/:slug` and `/pages/:slug`. Migrated redirects to them still show page not found, and `migrate:verify` lists them under `waitingForPhase6`.
 - The tests were written first and agreed with the developer. Lint, typecheck, Vitest and Playwright pass in the sandbox. See [progress-phase6.md](progress-phase6.md).
+
+## Phase 8: Web editing in unauthenticated test mode (2026-11-25)
+
+- Editors can add, change and delete pages, tools, instances, vendors and products, teams and services at `/edit`, using GOV.UK forms that work without JavaScript. Every change goes through a repository, so it creates its audit entry in the same transaction.
+- **Editing does not check who is signed in.** It is off by default and only works when `EDIT_MODE=test`. Every edit page says so, and every audit row is recorded as `system:unauthenticated_test_mode`. This is a deliberate exception to the JWT rule in `CLAUDE.md`, so the app can be released before Phase 7. The plan's JWT items are still to do.
+- Who is editing is decided by one swappable provider (`EditorIdentityProvider`). A provider that verifies the Lambda@Edge JWT can replace test mode by changing `src/server.ts`. See [docs/editing.md](../editing.md).
+- A form sends back when the record was loaded, so a save over someone else's change is refused (409) and nothing is overwritten. Cross-site writes are refused, and every `/edit/*` response is `no-store`.
+- Each kind of record is configuration in `src/editing/entities.ts`, so adding one needs no new code.
+- Lint, typecheck, Vitest, Playwright (with and without JavaScript, including axe) and `check:no-migration-data` pass in the sandbox. See [progress-phase8.md](progress-phase8.md).
 
 ## Before Phase 2: inputs to request
 

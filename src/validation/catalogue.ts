@@ -23,6 +23,15 @@ export type MigrationStatus = (typeof MIGRATION_STATUSES)[number];
 export const TOOL_KINDS = ["engineering", "business"] as const;
 export type ToolKind = (typeof TOOL_KINDS)[number];
 
+/**
+ * The page types each part of the read site shows, so the types a reader can
+ * open are the ones the read pages and the editing form agree on.
+ */
+export const READER_PAGE_TYPES = {
+  policies: ["policy"],
+  guidance: ["guidance", "service_guide"],
+} as const satisfies Record<string, readonly PageType[]>;
+
 export const CONTENT_STATUSES = ["draft", "published"] as const;
 
 /** Lower-case letters and digits in words separated by single hyphens, as the database checks. */
@@ -83,6 +92,15 @@ const weight = z.number().int().nullable();
 
 // The fields of each record, as plain shapes so callers can add their own
 // fields (for example the migration's references by key) and keep strictness.
+
+export const vendorFields = {
+  slug: keySchema,
+  name,
+  description: optionalText,
+  url: httpUrlSchema.nullable(),
+  supportContact: optionalText,
+  dataProtectionContact: optionalText,
+};
 
 export const toolFields = {
   key: keySchema,

@@ -1,13 +1,12 @@
+import { READER_PAGE_TYPES } from "../../validation/catalogue.js";
 import type { PageDetail, PageRecord, Repositories } from "../../repositories/index.js";
 
 /** The two parts of the site that show pages: /policies and /guidance. */
 export type ContentSection = "policies" | "guidance";
 
 /** The page types each section shows. The migration sends service guides to /guidance. */
-const SECTION_PAGE_TYPES: Readonly<Record<ContentSection, readonly PageRecord["pageType"][]>> = {
-  policies: ["policy"],
-  guidance: ["guidance", "service_guide"],
-};
+const SECTION_PAGE_TYPES: Readonly<Record<ContentSection, readonly PageRecord["pageType"][]>> =
+  READER_PAGE_TYPES;
 
 /**
  * Read access to published pages for the read pages. Drafts and pages of

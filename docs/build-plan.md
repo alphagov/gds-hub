@@ -8,18 +8,18 @@ This file drives the build. Claude Code works on **one phase per session**.
 2. Run the phase's **Before the session** commands yourself, outside the sandbox. Claude Code has no access to npm, Docker Hub or GitHub.
 3. Paste the phase's **Prompt**. Claude Code proposes a plan; approve it before any code is written.
 4. Don't move on until every **Done when** item passes.
-5. Claude Code writes the phase handover to `docs/progress/progress-phase<N>.md`, adds a summary to `docs/progress/progress.md` and commits locally. You push the branch and open the pull request.
+5. Claude Code finishes with the project skills in `.claude/skills` (see `CLAUDE.md`, Working agreement): `phase-handover`, `security-scan`, then `pre-commit-review`, and commits locally. You push the branch and open the pull request.
 6. If a phase grows too big, stop at a green test run, write the handover note and continue in a new session labelled "part b".
 
 ### Session rules (every phase)
 
-- Read `CLAUDE.md`, this phase's section of `docs/build-plan.md` and `docs/progress/progress.md` first, plus the previous phase's `docs/progress/progress-phase<N>.md`.
+- Start with the `phase-handover` skill, which reads this phase's section, `docs/progress/progress.md` and the previous phase's handover.
 - Never run `npm install`, `npx` downloads, `docker pull` or `git push`. If a package is missing, stop and list it in the phase's `docs/progress/progress-phase<N>.md`.
 - Only touch the files the phase needs. Put out-of-scope ideas in `docs/backlog.md`.
 - Write tests first where practical. Name tests after the behaviour they check, never after requirement IDs.
 - Playwright tests cover user-facing behaviour only. Vitest covers functions and modules.
 - Every pull request runs `.github/workflows/test.yml` (lint, typecheck, Vitest, Playwright) and must pass before merging. If a phase adds a check, a service or a browser, update the workflow in the same phase.
-- Finish with: `npm run lint && npm run typecheck && npm test && npm run test:e2e`, then a `docs/progress/progress-phase<N>.md` handover (what was built, key files, decisions, follow-ups), a high-level summary in `docs/progress/progress.md`, and a local commit.
+- Finish in the order set in `CLAUDE.md` (Working agreement): green checks, `phase-handover`, `security-scan`, `pre-commit-review`, local commit.
 
 ## MVP scope at a glance
 

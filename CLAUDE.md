@@ -65,16 +65,18 @@ docker compose up -d db
 
 ## Working agreement
 
-- Work on ONE phase per session (see docs/build-plan.md). Propose a plan before coding.
+- Work on ONE phase per session (see docs/build-plan.md). Start with the phase-handover skill and propose a plan before coding.
 - Never put requirement IDs (R01, C01, PP1, A1, etc.) in test names, test descriptions or code comments.
 - Playwright E2E tests cover user-facing, interactive behaviour only, named by what the user does and sees, e.g. test("preview shows the change without saving it").
 - Unit tests (Vitest) cover individual functions and modules, plus behaviour where useful, named by behaviour.
 - Stay in scope; log ideas in docs/backlog.md.
-- Before finishing: lint, typecheck, test, test:e2e all green.
-- Write the phase handover to docs/progress/progress-phase<N>.md (e.g. progress-phase0.md): what was built, key files, decisions, blockers, follow-ups.
-- Add a high-level summary of the phase to docs/progress/progress.md (summary table row plus a few bullets) linking to the phase file.
-- When tests are run successfully and before any committing, use the docs/secure-ai-development-practices.md to run a security scan ensuring no vulnerabilities are introduced. DO NOT write a log of any vulnerabilities found, only inform the developer.
-- Before anything is committed, assume the role of an automated PR reviewer. You are to identify any issues that may be surfaced in a PR and rectify them.
+- Finish every phase in this order, using the project skills in .claude/skills:
+  1. lint, typecheck, test and test:e2e all green
+  2. phase-handover: write docs/progress/progress-phase<N>.md and the summary in docs/progress/progress.md
+  3. security-scan: against docs/secure-ai-development-practices.md. Tell the developer about findings in the conversation only; never write them to a file
+  4. pre-commit-review: review the change as an automated PR reviewer and fix what it finds
+  5. commit locally
+- Any other commit also goes through security-scan and pre-commit-review first.
 
 ## Language
 

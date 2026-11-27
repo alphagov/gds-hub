@@ -11,6 +11,7 @@ export const testConfig: Config = Object.freeze({
   version: "1.2.3-test",
   trustProxyHops: 0,
   databaseUrl: "postgres://user:pass@localhost:5432/test",
+  editMode: "off",
 });
 
 export interface RunningApp {

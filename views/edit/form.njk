@@ -1,0 +1,62 @@
+{#
+  The form for adding a record or changing one. Every field's component and
+  parameters come from the presenter. It posts normally, so it works without
+  JavaScript. updatedAt says when the record was loaded, so a save is refused
+  if someone else has changed it since.
+#}
+{% extends "layouts/catalogue.njk" %}
+{% from "govuk/components/button/macro.njk" import govukButton %}
+{% from "govuk/components/checkboxes/macro.njk" import govukCheckboxes %}
+{% from "govuk/components/input/macro.njk" import govukInput %}
+{% from "govuk/components/select/macro.njk" import govukSelect %}
+{% from "govuk/components/summary-list/macro.njk" import govukSummaryList %}
+{% from "govuk/components/textarea/macro.njk" import govukTextarea %}
+{% from "partials/edit-notices.njk" import errorSummary, successBanner %}
+
+{% block heading %}
+  {{ errorSummary(page.errors) }}
+  {{ successBanner(page.success) }}
+  {{ super() }}
+  {% if page.latest %}
+    <p class="govuk-body"><a class="govuk-link" href="{{ page.latest.href }}">{{ page.latest.text }}</a></p>
+  {% endif %}
+{% endblock %}
+
+{% block body %}
+  <div class="govuk-grid-row">
+    <div class="govuk-grid-column-two-thirds">
+      {% if page.slug %}
+        {{ govukSummaryList({ rows: [page.slug] }) }}
+      {% endif %}
+
+      <form method="post" action="{{ page.action }}" novalidate>
+        {% if page.updatedAt %}
+          <input type="hidden" name="updatedAt" value="{{ page.updatedAt }}">
+        {% endif %}
+
+        {% for field in page.fields %}
+          {% if field.component == "input" %}
+            {{ govukInput(field.params) }}
+          {% elif field.component == "textarea" %}
+            {{ govukTextarea(field.params) }}
+          {% elif field.component == "select" %}
+            {{ govukSelect(field.params) }}
+          {% elif field.component == "checkboxes" %}
+            {{ govukCheckboxes(field.params) }}
+          {% endif %}
+        {% endfor %}
+
+        <div class="govuk-button-group">
+          {{ govukButton({ text: "Save", preventDoubleClick: true }) }}
+          <a class="govuk-link" href="{{ page.cancel.href }}">{{ page.cancel.text }}</a>
+        </div>
+      </form>
+
+      {% if page.delete %}
+        <p class="govuk-body">
+          <a class="govuk-link" href="{{ page.delete.href }}">{{ page.delete.text }}</a>
+        </p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

@@ -19,6 +19,8 @@ export interface ActorInput {
 /** The system actors, and the email recorded for each. */
 export const SYSTEM_ACTORS = {
   data_migration: "system:data_migration",
+  /** Editing in test mode, before anyone is signed in. The change is unverified. */
+  unauthenticated_test_mode: "system:unauthenticated_test_mode",
 } as const;
 
 export type SystemActorName = keyof typeof SYSTEM_ACTORS;

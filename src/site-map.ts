@@ -10,6 +10,9 @@ export const SERVICE_NAME = "GDS Hub";
 
 export const HOME_PATH = "/";
 
+/** The editing pages. Everything under it is private to editors. */
+export const EDIT_PATH = "/edit";
+
 export interface Section {
   /** Shown in the service navigation and as the page heading. */
   readonly name: string;
@@ -133,7 +136,11 @@ export const ERROR_PAGES = {
 
 export type ErrorStatus = keyof typeof ERROR_PAGES;
 
-/** The text of the HTML <title>: the page title followed by the service name. */
-export function documentTitle(pageTitle: string): string {
-  return pageTitle === SERVICE_NAME ? SERVICE_NAME : `${pageTitle} - ${SERVICE_NAME}`;
+/**
+ * The text of the HTML <title>: the page title followed by the service name.
+ * A page that shows an error summary starts with "Error: ".
+ */
+export function documentTitle(pageTitle: string, hasError = false): string {
+  const title = pageTitle === SERVICE_NAME ? SERVICE_NAME : `${pageTitle} - ${SERVICE_NAME}`;
+  return hasError ? `Error: ${title}` : title;
 }

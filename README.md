@@ -50,6 +50,25 @@ You should get a response like:
 
 To stop everything, run `docker compose down`. Add `-v` to delete the database volume as well.
 
+### Try editing in the browser
+
+Editing is off by default. To try it, add these two lines to `.env` (create it with `cp .env.example .env` if you haven't):
+
+```
+EDIT_MODE=test
+ALLOW_UNAUTHENTICATED_EDITING=yes
+```
+
+Then load the sample data and restart the app, so it picks up the new values:
+
+```bash
+set -a; . ./.env; set +a
+npm run db:reset
+docker compose up -d --build
+```
+
+Open <http://localhost:3000/edit>. Anyone who can reach the app can edit while this is on, so only do this on your own machine. Remove the two lines (or leave them blank) and run `docker compose up -d` again to switch editing off. See [Editing in test mode](#editing-in-test-mode).
+
 ## Run the app locally for development
 
 1. Copy the example environment file:
@@ -147,16 +166,28 @@ All configuration comes from environment variables. The app checks them when it 
 | `DATABASE_URL`                                                         | none          | Required. A `postgres://` or `postgresql://` connection URL                                                                                           |
 | `DATABASE_HOST`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD` | none          | Instead of `DATABASE_URL`, set all four (ECS passes them). The app builds the URL and verifies the server certificate                                 |
 | `DATABASE_PORT`                                                        | `5432`        | Port for the database parts                                                                                                                           |
+| `EDIT_MODE`                                                            | `off`         | `off` or `test`. See [Editing](#editing-in-test-mode)                                                                                                 |
+| `ALLOW_UNAUTHENTICATED_EDITING`                                        | none          | `yes`. Also needed for `EDIT_MODE=test` when `NODE_ENV=production`                                                                                    |
 | `TRUST_PROXY_HOPS`                                                     | `0`           | Number of proxies in front of the app, a whole number from 0. Set it to `2` behind CloudFront and the load balancer so `req.ip` is the client address |
 
 Docker Compose also reads these from `.env`:
 
-| Variable        | Default | Description                                 |
-| --------------- | ------- | ------------------------------------------- |
-| `APP_HOST_PORT` | `3000`  | Port on your machine that serves the app    |
-| `DB_HOST_PORT`  | `5432`  | Port on your machine that serves PostgreSQL |
+| Variable                        | Default | Description                                                       |
+| ------------------------------- | ------- | ----------------------------------------------------------------- |
+| `APP_HOST_PORT`                 | `3000`  | Port on your machine that serves the app                          |
+| `DB_HOST_PORT`                  | `5432`  | Port on your machine that serves PostgreSQL                       |
+| `EDIT_MODE`                     | blank   | Passed to the app container. See [Editing](#editing-in-test-mode) |
+| `ALLOW_UNAUTHENTICATED_EDITING` | blank   | Passed to the app container. Needed as well as `EDIT_MODE=test`   |
+
+The app container only gets the variables listed in `docker-compose.yml`, so a new setting in `.env` has no effect in Docker until it is added there.
 
 Never commit `.env` or any real credentials. In AWS, secrets come from Secrets Manager.
+
+## Editing in test mode
+
+Editing in the browser is off by default: every `/edit` address gives page not found. Set `EDIT_MODE=test` to switch it on without sign-in. Anyone who can reach the app can then add, change and delete pages, tools, instances, vendors and services. Every edit page says so, and every change is recorded in the audit log as `system:unauthenticated_test_mode`.
+
+Use it only where access is already limited, such as behind the WAF IP allow-list, until editors are verified. Any other value of `EDIT_MODE` stops the app starting, and so does `EDIT_MODE=test` in production unless `ALLOW_UNAUTHENTICATED_EDITING=yes` is also set. To add an editable kind of record, or to replace test mode with a provider that verifies the sign-in token, see [docs/editing.md](docs/editing.md).
 
 ## Scripts
 
@@ -189,6 +220,7 @@ src/
   app.ts          builds the Express app (does not start a server)
   server.ts       loads config, starts the server and handles shutdown
   config.ts       reads and validates environment variables
+  editing/        the editing forms: which records can be edited, form parsing and who is editing
   db/             database schema, seed data and the db:* scripts
   migration/      the inventory, load and verify scripts for the current Hub's data
   lib/            shared code, such as the logger
@@ -203,9 +235,10 @@ test/
   e2e/            Playwright tests (*.spec.ts)
   integration/    Vitest tests that need Postgres
 docs/
-  build-plan.md   the phased build plan
-  progress/       progress.md (summary of each phase) and progress-phase<N>.md (full handover per phase)
-  backlog.md      ideas that are out of scope for now
+  build-plan.md     the phased build plan
+  claude-skills.md  the project skills Claude Code uses at set points in each phase
+  progress/         progress.md (summary of each phase) and progress-phase<N>.md (full handover per phase)
+  backlog.md        ideas that are out of scope for now
 ```
 
 Requests flow from routes to services to repositories to the database. Only repositories talk to the database, and every write creates an audit log entry.
@@ -233,6 +266,10 @@ To find out what is using a port, run `lsof -nP -iTCP:5432 -sTCP:LISTEN`.
 
 A required environment variable is missing or invalid. The log message names each one. Check your `.env` file and make sure you loaded it into your shell.
 
+**`/edit` gives page not found, or the app container exits straight away after you set `EDIT_MODE=test`**
+
+Page not found means editing is off: the container didn't get `EDIT_MODE=test`. Check both variables are in `.env` and that you restarted with `docker compose up -d --build`. If the container exits, run `docker compose logs app`. The Docker image runs in production mode, so `EDIT_MODE=test` also needs `ALLOW_UNAUTHENTICATED_EDITING=yes`. Run `docker compose config` to see the values the container will get.
+
 **Pages are empty or fail with "relation does not exist"**
 
 The database isn't set up. Run `npm run db:reset`.
@@ -248,6 +285,7 @@ The database holds something `db:reset` won't throw away, and the message says w
 - Every page must meet WCAG 2.2 AA and work without JavaScript.
 - Never commit data from the current Hub, exports or database dumps. Tests use made-up sample data only.
 - After each phase, add a handover note in `docs/progress/progress-phase<N>.md` and a summary in [docs/progress/progress.md](docs/progress/progress.md).
+- Claude Code finishes each phase with the project skills in `.claude/skills`. See [docs/claude-skills.md](docs/claude-skills.md).
 
 ## Licence
 

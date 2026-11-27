@@ -76,5 +76,6 @@ override.tf.json
 
 # Claude
 /.claude
+.claude/settings.local.json
 infrastructure/terraform/bootstrap/backend.tf.off
 infrastructure-plan.md

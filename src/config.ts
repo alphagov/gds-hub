@@ -1,12 +1,15 @@
 import { z } from "zod";
 
 const LOG_LEVELS = ["debug", "info", "warn", "error"] as const;
+const EDIT_MODES = ["off", "test"] as const;
 
 const configSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   LOG_LEVEL: z.enum(LOG_LEVELS).default("info"),
   APP_VERSION: z.string().min(1).default("dev"),
+  EDIT_MODE: z.enum(EDIT_MODES).default("off"),
+  ALLOW_UNAUTHENTICATED_EDITING: z.enum(["yes"]).optional(),
   TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }).optional(),
   DATABASE_HOST: z
@@ -28,6 +31,12 @@ const DATABASE_PARTS = [
 
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
+/**
+ * Whether people can edit in the browser. "test" switches on editing without
+ * checking who is signed in, for releases before sign-in is delivered.
+ */
+export type EditMode = (typeof EDIT_MODES)[number];
+
 export interface Config {
   readonly nodeEnv: "development" | "test" | "production";
   readonly port: number;
@@ -36,6 +45,7 @@ export interface Config {
   /** How many proxies sit between the internet and the app. 0 means none, so no forwarded header is trusted. */
   readonly trustProxyHops: number;
   readonly databaseUrl: string;
+  readonly editMode: EditMode;
 }
 
 export class ConfigError extends Error {
@@ -66,6 +76,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
 
   const data = result.data;
+  // Unauthenticated editing in production has to be asked for twice, so one
+  // stray variable can't open the Hub to anyone who can reach it.
+  if (
+    data.NODE_ENV === "production" &&
+    data.EDIT_MODE === "test" &&
+    data.ALLOW_UNAUTHENTICATED_EDITING !== "yes"
+  ) {
+    throw new ConfigError([
+      "EDIT_MODE: test in production also needs ALLOW_UNAUTHENTICATED_EDITING=yes",
+    ]);
+  }
+
   const databaseUrl = resolveDatabaseUrl(data);
   return Object.freeze({
     nodeEnv: data.NODE_ENV,
@@ -74,6 +96,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     version: data.APP_VERSION,
     trustProxyHops: data.TRUST_PROXY_HOPS,
     databaseUrl,
+    editMode: data.EDIT_MODE,
   });
 }
 

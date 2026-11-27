@@ -5,6 +5,7 @@ import {
   type WriteOptions,
 } from "../repositories/index.js";
 import { DATA_MIGRATION_ACTOR_EMAIL, systemActor, type Actor } from "../services/audit/actor.js";
+import { RepositoryError } from "../repositories/errors.js";
 import type { MigrationPlan } from "./inventory.js";
 import {
   createLoadMapping,
@@ -93,6 +94,19 @@ export interface LoadOptions {
 }
 
 const CHANGE_SUMMARY: WriteOptions = { changeSummary: "Migrated from the current Hub" };
+
+/**
+ * For a write to a record the migration wrote last. The repository checks this
+ * once the record is locked, so an editor's save that lands after the
+ * snapshot was read is never overwritten.
+ */
+const OWN_RECORD: WriteOptions = {
+  ...CHANGE_SUMMARY,
+  expectedLastActor: DATA_MIGRATION_ACTOR_EMAIL,
+};
+
+const isStale = (error: unknown): boolean =>
+  error instanceof RepositoryError && error.kind === "stale";
 
 const SKIPPED_REASON = "an editor has changed it since the migration last wrote it";
 
@@ -249,14 +263,22 @@ async function syncLinks<Row extends object>(
     if (changes === undefined) {
       outcome.unchanged += 1;
     } else if (ours(have.id)) {
-      await writer.update(have.id, changes, actor, CHANGE_SUMMARY);
-      outcome.updated += 1;
+      try {
+        await writer.update(have.id, changes, actor, OWN_RECORD);
+        outcome.updated += 1;
+      } catch (error) {
+        if (!isStale(error)) throw error;
+      }
     }
   }
   for (const [pair, have] of existing) {
     if (wanted.has(pair) || !ours(have.id)) continue;
-    await writer.remove(have.id, actor, CHANGE_SUMMARY);
-    outcome.removed += 1;
+    try {
+      await writer.remove(have.id, actor, OWN_RECORD);
+      outcome.removed += 1;
+    } catch (error) {
+      if (!isStale(error)) throw error;
+    }
   }
   return outcome;
 }
@@ -307,12 +329,21 @@ async function loadInTransaction(
       continue;
     }
 
-    const { changedFields } = await writer.update(
-      existingId,
-      mapping.columnValues(record, idOf),
-      actor,
-      CHANGE_SUMMARY,
-    );
+    let changedFields: readonly string[];
+    try {
+      ({ changedFields } = await writer.update(
+        existingId,
+        mapping.columnValues(record, idOf),
+        actor,
+        OWN_RECORD,
+      ));
+    } catch (error) {
+      if (!isStale(error)) throw error;
+      // An editor saved after the snapshot was read.
+      skipped.add(recordId(entity, key));
+      records.push({ entity, key, action: "skipped", changedFields: [], reason: SKIPPED_REASON });
+      continue;
+    }
     records.push({
       entity,
       key,

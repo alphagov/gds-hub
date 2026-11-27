@@ -21,7 +21,34 @@ describe("loadConfig", () => {
       version: "dev",
       trustProxyHops: 0,
       databaseUrl: validEnv.DATABASE_URL,
+      editMode: "off",
     });
+  });
+
+  it("keeps editing off unless EDIT_MODE says otherwise", () => {
+    expect(loadConfig({ ...validEnv, EDIT_MODE: "" }).editMode).toBe("off");
+    expect(loadConfig({ ...validEnv, NODE_ENV: "production" }).editMode).toBe("off");
+  });
+
+  it("turns on unauthenticated test mode editing only when asked", () => {
+    expect(loadConfig({ ...validEnv, EDIT_MODE: "test" }).editMode).toBe("test");
+  });
+
+  it("needs a second setting before production allows unauthenticated editing", () => {
+    const production = { ...validEnv, NODE_ENV: "production", EDIT_MODE: "test" };
+    expect(() => loadConfig(production)).toThrow(ConfigError);
+    expect(() => loadConfig({ ...production, ALLOW_UNAUTHENTICATED_EDITING: "true" })).toThrow(
+      ConfigError,
+    );
+    expect(loadConfig({ ...production, ALLOW_UNAUTHENTICATED_EDITING: "yes" }).editMode).toBe(
+      "test",
+    );
+  });
+
+  it("refuses an EDIT_MODE it doesn't know, so a typo can't switch editing on", () => {
+    for (const mode of ["on", "true", "TEST", "jwt", "1"]) {
+      expect(() => loadConfig({ ...validEnv, EDIT_MODE: mode }), mode).toThrow(ConfigError);
+    }
   });
 
   it("reads and coerces values from the environment", () => {

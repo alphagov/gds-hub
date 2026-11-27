@@ -67,6 +67,8 @@ export default defineConfig({
         LOG_LEVEL: "warn",
         APP_VERSION: "e2e",
         DATABASE_URL: databaseUrl(),
+        // The editing tests need unauthenticated test mode switched on.
+        EDIT_MODE: "test",
       },
     },
     {

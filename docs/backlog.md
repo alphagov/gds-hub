@@ -30,11 +30,19 @@ Ideas raised during phases that are out of scope for the phase that found them.
 - Serve the old Hub's images and downloads once hosting them is decided. Content pages already link to them under `MIGRATION_ASSET_BASE_PATH` (Phase 5, for Phase 6).
 - Add an option to `migrate:load` to overwrite records an editor has changed, if a re-run after cut-over is ever needed. For now they are always skipped (Phase 5b).
 - Cache redirect lookups, or the redirect responses at CloudFront, if 404 traffic to old addresses turns out to be heavy (Phase 5b, for Phase 12).
+- Connect to RDS over TLS, checking its certificate (for example `sslmode=verify-full` with the RDS certificate bundle in the image), for the app and the migration task. The migration's AWS run waits for this (Phase 5b, for Phase 13).
+- Move the general parts of the project skills in `.claude/skills` into a shared kit, installed with `sbx skills add`, if other repos need them (Claude skills).
 - Add routes for `/whats-new/:slug` and `/pages/:slug`, and a `/whats-new` listing. Migrated redirects already point at them and still show page not found. They weren't in Phase 6's brief (Phase 6).
 - Render instance text fields as markdown now that `src/lib/markdown.ts` exists (Phase 6, supersedes the Phase 4 entry above).
 - Rename `waitingForPhase6` in `src/migration/verify.ts` and its report, now it lists pages with no route rather than waiting for Phase 6 (Phase 6).
 - Style `details` and `summary` in page bodies with the `govuk-details` classes, and keep `open`. They render unstyled for now (Phase 6).
 - Check the heading ids against the old Hub's anchors on the real build (apostrophes, accents), so migrated `#fragment` links land on the right heading (Phase 6).
+- Add an "Edit this page" link on the read pages, shown only when editing is switched on (Phase 8).
+- Edit links between records in the browser: a tool's capabilities, a team's instances, and the business units a team belongs to (Phase 8).
+- Edit the kinds of record left out of the first release: instance `extraAttributes`, contracts, suppliers, capabilities, business units, ownership levels and redirects. Each is an entry in `src/editing/entities.ts` once its fields are decided (Phase 8).
+- Preview a change before saving it (Phase 9).
+- Set a page's `publishedAt` when it is first published through the form, if anything starts reading it (Phase 8).
+- Show who last changed a record, from the audit log, on its edit page, once editors are verified (Phase 8, for Phase 7).
 - Add a check that fails the build if a 12-digit AWS account ID or an ARN with one appears in tracked files, outside the documentation example, like `check:no-migration-data` (Phase 14).
 - Run Terraform plan and apply for the deploy only in the protected GitHub environment, store the values it needs as environment secrets rather than variables, and never upload plan files as artifacts, because resource attributes still print in logs when outputs are sensitive (Phase 14).
 - Add the data migration steps (sync inputs, register the task definition, run inventory, load and verify) to the `docs/deployment.md` that Part 2 adds, and point `docs/migration.md` at them (Phase 13a, for Part 2).
