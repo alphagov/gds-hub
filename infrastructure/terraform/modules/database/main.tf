@@ -10,15 +10,17 @@ resource "aws_db_subnet_group" "this" {
 }
 
 # rds.force_ssl is already 1 on PostgreSQL 15 and later. It's set so that
-# requiring TLS is visible here.
+# requiring TLS is visible here. RDS reports it with apply_method
+# "pending-reboot", so it's set to match, or every plan would show a change.
 resource "aws_db_parameter_group" "this" {
   name        = var.name
   family      = var.parameter_group_family
   description = "GDS Hub: require TLS."
 
   parameter {
-    name  = "rds.force_ssl"
-    value = "1"
+    name         = "rds.force_ssl"
+    value        = "1"
+    apply_method = "pending-reboot"
   }
 
   tags = { Name = var.name }
