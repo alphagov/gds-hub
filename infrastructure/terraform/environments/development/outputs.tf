@@ -33,8 +33,14 @@ output "service_arn" {
   sensitive   = true
 }
 
+output "cloudfront_domain" {
+  description = "The CloudFront distribution's *.cloudfront.net domain: the address to use for the Hub. Null until create_service is true."
+  value       = module.cdn.domain_name
+  sensitive   = true
+}
+
 output "service_url" {
-  description = "Address of the service's load balancer, or null until create_service is true."
+  description = "Address of the service's load balancer, or null until create_service is true. It refuses requests that don't come through CloudFront."
   value       = module.service.service_url
   sensitive   = true
 }

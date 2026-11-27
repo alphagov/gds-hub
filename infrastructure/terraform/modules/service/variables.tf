@@ -144,7 +144,7 @@ variable "max_task_count" {
 }
 
 variable "trust_proxy_hops" {
-  description = "How many proxies sit in front of the app (the load balancer is one). Read by the app as TRUST_PROXY_HOPS."
+  description = "How many proxies sit in front of the app (CloudFront and the load balancer are two). Read by the app as TRUST_PROXY_HOPS."
   type        = number
   default     = 1
 }

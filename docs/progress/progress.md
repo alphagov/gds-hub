@@ -121,6 +121,7 @@ The Phase 2 schema needs two inputs from the developer. They don't exist yet. Wh
 
 - Terraform for the development account (network, RDS, secrets, ECR, IAM, WAF, Express service and migration task definitions, ARM64), applied except the Express service.
 - The app builds its database URL from `DATABASE_*` parts with `sslmode=verify-full`. The image carries the RDS CA bundle (pinned SHA-256) and `drizzle/`.
-- New `TRUST_PROXY_HOPS` setting (default 0, set to 1 behind the load balancer), applied as Express's `trust proxy`.
+- New `TRUST_PROXY_HOPS` setting (default 0), applied as Express's `trust proxy`. Development sets it to 2 (CloudFront and the load balancer).
+- CloudFront in front of the Express service (added 2026-11-27): the IP allow-list moved to a global web ACL, and the regional web ACL now only admits requests carrying CloudFront's secret origin header. Pages aren't cached; `/assets/*` is.
 - The manual first-deploy steps are in the phase file. The deploy workflow (Part 2) doesn't exist yet.
 - **Not run in the sandbox:** `docker build`, Terraform and AWS CLI steps. The developer runs them. See [progress-phase13a.md](progress-phase13a.md#needs-the-developer).

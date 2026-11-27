@@ -91,8 +91,10 @@ resource "aws_ecs_express_gateway_service" "this" {
   }
 
   scaling_target {
-    min_task_count = var.min_task_count
-    max_task_count = var.max_task_count
+    min_task_count            = var.min_task_count
+    max_task_count            = var.max_task_count
+    auto_scaling_metric       = "AVERAGE_CPU"
+    auto_scaling_target_value = 60
   }
 
   lifecycle {

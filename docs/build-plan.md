@@ -276,8 +276,8 @@ The phase numbers are unchanged, so Phase 8 still follows Phase 6.
 
 ## Phase 13a: Running the app on AWS (development)
 
-**Goal:** the app runs in the development AWS account on ECS Express Mode, connected to RDS over verified TLS, with the schema migrated by a one-off task.
-**Out of scope:** the deploy workflow and the data migration run (Part 2), pre-prod and prod, CloudFront and Lambda@Edge.
+**Goal:** the app runs in the development AWS account on ECS Express Mode behind CloudFront, connected to RDS over verified TLS, with the schema migrated by a one-off task.
+**Out of scope:** the deploy workflow and the data migration run (Part 2), pre-prod and prod, Lambda@Edge, a custom domain, and making the load balancer internal.
 
 ### Done when
 
@@ -285,6 +285,7 @@ The phase numbers are unchanged, so Phase 8 still follows Phase 6.
 - The app builds its database URL from `DATABASE_*` parts with `sslmode=verify-full`, and trusts the load balancer as set by `TRUST_PROXY_HOPS`.
 - The schema migration task runs to exit code 0 against RDS.
 - `/health` passes through the service URL from an allowed IP, and the WAF is associated.
+- The app is served through CloudFront's `*.cloudfront.net` domain to allowed IPs only, the Express URL refuses requests that don't come through CloudFront, and `TRUST_PROXY_HOPS` counts both proxies.
 
 **Handover:** the manual first-deploy steps and the first-apply check results, in `docs/progress/progress-phase13a.md`.
 

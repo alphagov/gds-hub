@@ -38,3 +38,10 @@ Ideas raised during phases that are out of scope for the phase that found them.
 - Add a check that fails the build if a 12-digit AWS account ID or an ARN with one appears in tracked files, outside the documentation example, like `check:no-migration-data` (Phase 14).
 - Run Terraform plan and apply for the deploy only in the protected GitHub environment, store the values it needs as environment secrets rather than variables, and never upload plan files as artifacts, because resource attributes still print in logs when outputs are sensitive (Phase 14).
 - Add the data migration steps (sync inputs, register the task definition, run inventory, load and verify) to the `docs/deployment.md` that Part 2 adds, and point `docs/migration.md` at them (Phase 13a, for Part 2).
+- Make the Express load balancer internal, with a CloudFront VPC origin. The tasks then need private subnets and VPC endpoints (ECR, CloudWatch Logs, Secrets Manager, S3), because there is no NAT. Until then the regional WAF's origin header check is what stops direct use (Phase 13a, for Phase 13).
+- Rotate the CloudFront origin header without 403s: let the regional WAF accept the old and new values while CloudFront rolls out the new one (Phase 13a, for Phase 13).
+- Turn on logging for both web ACLs and CloudFront access logs, and send them to central logging. Redact the `x-origin-verify` header in the regional web ACL's logging configuration, so the origin secret isn't logged (Phase 13a, for Phase 13).
+- Decide on AWS Shield Advanced and the Shield Response Team for CloudFront and the load balancer (Phase 13a, for Phase 13).
+- Add AWS managed rule groups (the common rule set and known bad inputs) to CloudFront's web ACL, in Count mode first (Phase 13a, for Phase 13).
+- Scan the Terraform in CI, with tflint and checkov or Trivy, and run `terraform fmt -check` and `terraform validate` there (Phase 13a, for Phase 14).
+- Give the `/assets/*` files versioned names and a long `max-age`, so CloudFront can cache them for longer. Today they're sent with `max-age=0`, so CloudFront revalidates them (Phase 13a, for Phase 12).

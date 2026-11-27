@@ -1,10 +1,12 @@
 The research agent has written its feasibility review to docs/research/infrastructure-plan-feasibility.md. I haven't read the file myself, so what follows is the agent's summary. It will notify again, because my message telling it to narrow its fetching arrived after it had finished, so it's being resumed with that message. The file may change.
 
 Verdicts
+
 - Feasible with changes: Secrets Manager, Express Mode, RDS and TLS, GitHub OIDC, Terraform state, and the security posture (development only).
 - Defects found: the plan's errors and ordering.
 
 Top three changes
+
 1. Replace the -target two-stage first apply.
    - The stage-1 deploy would fail. The workflow runs the schema migration, which needs the RDS instance, secret and task definition that stage 1 doesn't create, and then updates a service that doesn't exist yet.
    - Use a create_service variable instead. Apply 1 builds everything except the service and the WAF association. A push-and-migrate-only workflow run follows, and apply 2 creates the service.
@@ -17,11 +19,13 @@ Top three changes
    - Pin the AWS provider to 6.50 or later and require Terraform 1.11 or later.
 
 Smaller findings
+
 - rds.force_ssl is already 1 by default on PostgreSQL 15 and later.
 - Newer GitHub repositories use an immutable OIDC sub claim, which the trust policy must match.
 - Every one-off task needs a public IP, because there is no NAT.
 
 Unverified, so check these yourself
+
 - Whether PostgreSQL 18 is offered in eu-west-2. Run aws rds describe-db-engine-versions --engine postgres --region eu-west-2.
 - Whether the RDS-managed secret has only the username and password keys.
 - Whether Express Mode accepts the <arn>:username:: form in secret.

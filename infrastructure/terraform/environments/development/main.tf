@@ -1,11 +1,12 @@
 # The development environment, built from the modules in dependency order:
 #
-#   network -> security -> database -> storage -> iam -> service -> edge
+#   network -> security -> database -> storage -> iam -> service -> cdn -> edge
 #                                                              \-> deploy_role
 #
-# Each module takes only what the ones before it output. The service and the
-# WAF association are created in a second apply (create_service), once the
-# first image has been pushed and the schema migrated.
+# Each module takes only what the ones before it output. The service, the
+# CloudFront distribution and the WAF association are created in a second
+# apply (create_service), once the first image has been pushed and the schema
+# migrated.
 
 locals {
   name = "hub-development"
@@ -70,21 +71,40 @@ module "service" {
   create_service                  = var.create_service
   app_image                       = var.app_image
 
+  # CloudFront and the load balancer both add to X-Forwarded-For.
+  trust_proxy_hops = 2
+
   # The roles' policy attachments must exist before the service is created,
   # or deleting it can fail while the roles are still draining.
   depends_on = [module.iam]
+}
+
+module "cdn" {
+  source = "../../modules/cdn"
+
+  providers = {
+    aws           = aws
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  name                = local.name
+  allowed_cidrs       = var.allowed_cidrs
+  create_distribution = var.create_service
+  origin_domain       = module.service.service_url
 }
 
 module "edge" {
   source = "../../modules/edge"
 
   name                   = local.name
-  allowed_cidrs          = var.allowed_cidrs
+  origin_verify_secret   = module.cdn.origin_verify_secret
   associate_with_service = var.create_service
   alb_arn                = var.alb_arn
 
-  # The load balancer lookup must wait until the service has created it.
-  depends_on = [module.service]
+  # The load balancer lookup must wait until the service has created it, and
+  # the web ACL must only start requiring CloudFront's header once the
+  # distribution is deployed.
+  depends_on = [module.service, module.cdn]
 }
 
 module "deploy_role" {

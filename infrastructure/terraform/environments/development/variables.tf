@@ -5,7 +5,7 @@ variable "region" {
 }
 
 variable "allowed_cidrs" {
-  description = "IPv4 address ranges allowed to reach the service. Set them only in the git-ignored terraform.tfvars."
+  description = "IPv4 address ranges allowed to reach the service through CloudFront. Set them only in the git-ignored terraform.tfvars."
   type        = list(string)
   sensitive   = true
 }
@@ -36,7 +36,7 @@ variable "github_subject" {
 }
 
 variable "create_service" {
-  description = "Create the Express service and attach the WAF. Leave false for the first apply; set true once the first image is pushed and the schema migrated."
+  description = "Create the Express service and the CloudFront distribution, and attach the WAF. Leave false for the first apply; set true once the first image is pushed and the schema migrated."
   type        = bool
   default     = false
 }

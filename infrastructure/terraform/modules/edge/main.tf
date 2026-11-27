@@ -1,19 +1,14 @@
-# A regional web ACL that blocks everything except the allowed address ranges,
-# with a rate limit. Express Mode doesn't output its load balancer's ARN, so
-# the association finds the load balancer by the AmazonECSManaged tag, unless
+# A regional web ACL on the Express load balancer that allows only requests
+# carrying CloudFront's secret X-Origin-Verify header (see modules/cdn), so the
+# Express URL can't be used directly. The address allow-list and the rate limit
+# are on CloudFront's web ACL: here every request comes from a CloudFront
+# address. Express Mode doesn't output its load balancer's ARN, so the
+# association finds the load balancer by the AmazonECSManaged tag, unless
 # alb_arn is set. Until the association exists the load balancer is public.
-
-resource "aws_wafv2_ip_set" "allowed" {
-  name               = "${var.name}-allowed"
-  description        = "Address ranges allowed to reach the GDS Hub."
-  scope              = "REGIONAL"
-  ip_address_version = "IPV4"
-  addresses          = var.allowed_cidrs
-}
 
 resource "aws_wafv2_web_acl" "this" {
   name        = var.name
-  description = "Block everything except the allowed address ranges."
+  description = "Block everything except requests that come through CloudFront."
   scope       = "REGIONAL"
 
   default_action {
@@ -21,45 +16,36 @@ resource "aws_wafv2_web_acl" "this" {
   }
 
   rule {
-    name     = "rate-limit"
+    name     = "from-cloudfront"
     priority = 1
-
-    action {
-      block {}
-    }
-
-    statement {
-      rate_based_statement {
-        limit              = var.rate_limit
-        aggregate_key_type = "IP"
-      }
-    }
-
-    visibility_config {
-      cloudwatch_metrics_enabled = true
-      metric_name                = "${var.name}-rate-limit"
-      sampled_requests_enabled   = true
-    }
-  }
-
-  rule {
-    name     = "allow-listed-addresses"
-    priority = 2
 
     action {
       allow {}
     }
 
     statement {
-      ip_set_reference_statement {
-        arn = aws_wafv2_ip_set.allowed.arn
+      byte_match_statement {
+        search_string         = var.origin_verify_secret
+        positional_constraint = "EXACTLY"
+
+        field_to_match {
+          single_header {
+            name = "x-origin-verify"
+          }
+        }
+
+        text_transformation {
+          priority = 0
+          type     = "NONE"
+        }
       }
     }
 
+    # No sampled requests: they would show the X-Origin-Verify value.
     visibility_config {
       cloudwatch_metrics_enabled = true
-      metric_name                = "${var.name}-allowed"
-      sampled_requests_enabled   = true
+      metric_name                = "${var.name}-from-cloudfront"
+      sampled_requests_enabled   = false
     }
   }
 
