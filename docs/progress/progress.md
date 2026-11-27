@@ -13,6 +13,7 @@ A short summary of each completed phase. The full handover for each phase (what 
 | P5b   | Migration: load and verify  | 2026-11-12 | Code complete              | [progress-phase5.md](progress-phase5.md#part-b-loader-redirects-and-verify) |
 | P6    | Content pages               | 2026-11-24 | Code complete              | [progress-phase6.md](progress-phase6.md)                                    |
 | P8    | Web editing (test mode)     | 2026-11-25 | Code complete, JWT to do   | [progress-phase8.md](progress-phase8.md)                                    |
+| P9    | Preview                     | 2026-11-27 | Code complete              | [progress-phase9.md](progress-phase9.md)                                    |
 
 ## Phase 0: Foundations and tooling (2026-11-04)
 
@@ -116,6 +117,15 @@ A short summary of each completed phase. The full handover for each phase (what 
 - A form sends back when the record was loaded, so a save over someone else's change is refused (409) and nothing is overwritten. Cross-site writes are refused, and every `/edit/*` response is `no-store`.
 - Each kind of record is configuration in `src/editing/entities.ts`, so adding one needs no new code.
 - Lint, typecheck, Vitest, Playwright (with and without JavaScript, including axe) and `check:no-migration-data` pass in the sandbox. See [progress-phase8.md](progress-phase8.md).
+
+## Phase 9: Preview (2026-11-27)
+
+- Every edit form has a Preview button. It shows the real page with the typed values in place of the saved ones, a banner saying nothing is saved, and `noindex, nofollow`.
+- Preview never writes. The banner offers save and publish, which saves through the normal edit service and audit entry, or continue editing, which gives the form back as it was typed.
+- The values travel in a signed payload tied to the editor and the record. It is refused if it was changed, has expired (30 minutes) or was made for someone else, and the values are checked again when saved.
+- `PREVIEW_SIGNING_SECRET` (at least 32 characters) is now needed when `EDIT_MODE=test`. The Terraform doesn't set it yet.
+- Run `test:e2e` against `gdshub_e2e_seed`, not the general development database. The preview e2e tests no longer depend on the other project's writes.
+- The JWT checks from Phase 8 are still to do. See [progress-phase9.md](progress-phase9.md).
 
 ## Before Phase 2: inputs to request
 

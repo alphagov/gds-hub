@@ -41,6 +41,6 @@ Ideas raised during phases that are out of scope for the phase that found them.
 - Add an "Edit this page" link on the read pages, shown only when editing is switched on (Phase 8).
 - Edit links between records in the browser: a tool's capabilities, a team's instances, and the business units a team belongs to (Phase 8).
 - Edit the kinds of record left out of the first release: instance `extraAttributes`, contracts, suppliers, capabilities, business units, ownership levels and redirects. Each is an entry in `src/editing/entities.ts` once its fields are decided (Phase 8).
-- Preview a change before saving it (Phase 9).
+- Let `db:migrate` and `db:seed` start without `PREVIEW_SIGNING_SECRET` when `EDIT_MODE=test`, since they never serve a page (Phase 9).
 - Set a page's `publishedAt` when it is first published through the form, if anything starts reading it (Phase 8).
 - Show who last changed a record, from the audit log, on its edit page, once editors are verified (Phase 8, for Phase 7).
