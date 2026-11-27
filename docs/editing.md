@@ -18,6 +18,12 @@ Editors add, change and delete records at `/edit`. This page explains how that i
 
 With Docker Compose, the app container only receives the variables named in `docker-compose.yml`. `EDIT_MODE` and `ALLOW_UNAUTHENTICATED_EDITING` are passed through from your shell or `.env`, and are blank (editing off) if you set neither. The image runs with `NODE_ENV=production`, so both are needed. The steps are in the README under "Try editing in the browser".
 
+## Preview
+
+Each edit form posts to `/edit/:entity/preview` (or `/edit/:entity/:id/preview`). The preview service (`src/services/editing/preview-service.ts`) builds the same details the reader's page uses, with the typed values in place of the saved ones, and only reads. The page carries `page.preview` in its view model and `noindex, nofollow`. Save and publish (`/publish`) and continue editing (`/continue`) send back a payload signed by `src/editing/preview-signing.ts`.
+
+The payload holds the typed text, the kind of record, its id, the actor and the time it was made. It is signed, not encrypted, and is refused if it was changed, is older than 30 minutes, or was made for another actor or record. In test mode every editor is the same actor, so a payload isn’t tied to one person until a provider that verifies editors replaces test mode. Values are parsed again with the normal form checks on save. The signing key is `PREVIEW_SIGNING_SECRET` (at least 32 characters), needed when `EDIT_MODE=test`; any provider that replaces test mode needs it too.
+
 This does not meet the Identity rule in `CLAUDE.md`, which says every `/edit/*` route must verify the Lambda@Edge JWT. It is a deliberate exception so editing can be released before sign-in is delivered. The JWT checks are still to do (see the Phase 8 handover).
 
 ## Add a kind of record

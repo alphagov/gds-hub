@@ -11,6 +11,7 @@ const configSchema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   EDIT_MODE: z.enum(EDIT_MODES).default("off"),
   ALLOW_UNAUTHENTICATED_EDITING: z.enum(["yes"]).optional(),
+  PREVIEW_SIGNING_SECRET: z.string().min(32, "must be at least 32 characters").optional(),
 });
 
 export type LogLevel = (typeof LOG_LEVELS)[number];
@@ -28,6 +29,8 @@ export interface Config {
   readonly version: string;
   readonly databaseUrl: string;
   readonly editMode: EditMode;
+  /** Signs previews so they can be saved unchanged. Required when editing is on. */
+  readonly previewSigningSecret?: string;
 }
 
 export class ConfigError extends Error {
@@ -64,6 +67,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       "EDIT_MODE: test in production also needs ALLOW_UNAUTHENTICATED_EDITING=yes",
     ]);
   }
+  if (data.EDIT_MODE === "test" && data.PREVIEW_SIGNING_SECRET === undefined) {
+    throw new ConfigError(["PREVIEW_SIGNING_SECRET: needed when EDIT_MODE is test"]);
+  }
   return Object.freeze({
     nodeEnv: data.NODE_ENV,
     port: data.PORT,
@@ -71,5 +77,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     version: data.APP_VERSION,
     databaseUrl: data.DATABASE_URL,
     editMode: data.EDIT_MODE,
+    ...(data.PREVIEW_SIGNING_SECRET === undefined
+      ? {}
+      : { previewSigningSecret: data.PREVIEW_SIGNING_SECRET }),
   });
 }

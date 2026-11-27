@@ -52,12 +52,15 @@ To stop everything, run `docker compose down`. Add `-v` to delete the database v
 
 ### Try editing in the browser
 
-Editing is off by default. To try it, add these two lines to `.env` (create it with `cp .env.example .env` if you haven't):
+Editing is off by default. To try it, add these lines to `.env` (create it with `cp .env.example .env` if you haven't):
 
 ```
 EDIT_MODE=test
 ALLOW_UNAUTHENTICATED_EDITING=yes
+PREVIEW_SIGNING_SECRET=<a secret of at least 32 characters>
 ```
+
+You can make the secret with `openssl rand -hex 32`. Keep it out of git.
 
 Then load the sample data and restart the app, so it picks up the new values:
 
@@ -67,7 +70,7 @@ npm run db:reset
 docker compose up -d --build
 ```
 
-Open <http://localhost:3000/edit>. Anyone who can reach the app can edit while this is on, so only do this on your own machine. Remove the two lines (or leave them blank) and run `docker compose up -d` again to switch editing off. See [Editing in test mode](#editing-in-test-mode).
+Open <http://localhost:3000/edit>. Anyone who can reach the app can edit while this is on, so only do this on your own machine. Remove these lines (or leave them blank) and run `docker compose up -d` again to switch editing off. See [Editing in test mode](#editing-in-test-mode).
 
 ## Run the app locally for development
 
@@ -166,6 +169,7 @@ All configuration comes from environment variables. The app checks them when it 
 | `DATABASE_URL`                  | none          | Required. A `postgres://` or `postgresql://` connection URL        |
 | `EDIT_MODE`                     | `off`         | `off` or `test`. See [Editing](#editing-in-test-mode)              |
 | `ALLOW_UNAUTHENTICATED_EDITING` | none          | `yes`. Also needed for `EDIT_MODE=test` when `NODE_ENV=production` |
+| `PREVIEW_SIGNING_SECRET`        | none          | At least 32 characters. Needed when `EDIT_MODE=test`               |
 
 Docker Compose also reads these from `.env`:
 
@@ -175,6 +179,7 @@ Docker Compose also reads these from `.env`:
 | `DB_HOST_PORT`                  | `5432`  | Port on your machine that serves PostgreSQL                       |
 | `EDIT_MODE`                     | blank   | Passed to the app container. See [Editing](#editing-in-test-mode) |
 | `ALLOW_UNAUTHENTICATED_EDITING` | blank   | Passed to the app container. Needed as well as `EDIT_MODE=test`   |
+| `PREVIEW_SIGNING_SECRET`        | blank   | Passed to the app container. Needed as well as `EDIT_MODE=test`   |
 
 The app container only gets the variables listed in `docker-compose.yml`, so a new setting in `.env` has no effect in Docker until it is added there.
 
@@ -185,6 +190,8 @@ Never commit `.env` or any real credentials. In AWS, secrets come from Secrets M
 Editing in the browser is off by default: every `/edit` address gives page not found. Set `EDIT_MODE=test` to switch it on without sign-in. Anyone who can reach the app can then add, change and delete pages, tools, instances, vendors and services. Every edit page says so, and every change is recorded in the audit log as `system:unauthenticated_test_mode`.
 
 Use it only where access is already limited, such as behind the WAF IP allow-list, until editors are verified. Any other value of `EDIT_MODE` stops the app starting, and so does `EDIT_MODE=test` in production unless `ALLOW_UNAUTHENTICATED_EDITING=yes` is also set. To add an editable kind of record, or to replace test mode with a provider that verifies the sign-in token, see [docs/editing.md](docs/editing.md).
+
+Every edit form has a Preview button. It shows the real page with what you typed, and saves nothing. From the preview you can save and publish, or go back and keep editing. The typed values travel in a signed payload that lasts 30 minutes and only works for the actor and record it was made for, so `PREVIEW_SIGNING_SECRET` must be set whenever `EDIT_MODE=test`. In test mode everyone is the same actor, so a copied payload works for anyone until editors are verified.
 
 ## Scripts
 

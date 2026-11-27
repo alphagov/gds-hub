@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig } from "../../src/config.js";
 
 const validEnv = { DATABASE_URL: "postgres://user:pass@localhost:5432/hub" };
+// Invented, and long enough: test mode editing won't start without one.
+const SIGNING_SECRET = "a-long-secret-for-signing-previews-0123456789";
 
 function captureError(fn: () => unknown): unknown {
   try {
@@ -30,11 +32,19 @@ describe("loadConfig", () => {
   });
 
   it("turns on unauthenticated test mode editing only when asked", () => {
-    expect(loadConfig({ ...validEnv, EDIT_MODE: "test" }).editMode).toBe("test");
+    expect(
+      loadConfig({ ...validEnv, EDIT_MODE: "test", PREVIEW_SIGNING_SECRET: SIGNING_SECRET })
+        .editMode,
+    ).toBe("test");
   });
 
   it("needs a second setting before production allows unauthenticated editing", () => {
-    const production = { ...validEnv, NODE_ENV: "production", EDIT_MODE: "test" };
+    const production = {
+      ...validEnv,
+      NODE_ENV: "production",
+      EDIT_MODE: "test",
+      PREVIEW_SIGNING_SECRET: SIGNING_SECRET,
+    };
     expect(() => loadConfig(production)).toThrow(ConfigError);
     expect(() => loadConfig({ ...production, ALLOW_UNAUTHENTICATED_EDITING: "true" })).toThrow(
       ConfigError,
@@ -90,5 +100,35 @@ describe("loadConfig", () => {
     ) as ConfigError;
     const fields = error.issues.map((issue) => issue.split(":")[0]);
     expect(fields).toEqual(expect.arrayContaining(["DATABASE_URL", "PORT", "LOG_LEVEL"]));
+  });
+});
+
+describe("the preview signing secret", () => {
+  const testMode = { ...validEnv, EDIT_MODE: "test" };
+  const secret = "a-long-secret-for-signing-previews-0123456789";
+
+  it("is needed whenever test mode editing is on, so the app won't start without it", () => {
+    expect(() => loadConfig(testMode)).toThrow(ConfigError);
+    expect(() => loadConfig({ ...testMode, PREVIEW_SIGNING_SECRET: "too-short" })).toThrow(
+      ConfigError,
+    );
+  });
+
+  it("is read when it is long enough", () => {
+    expect(loadConfig({ ...testMode, PREVIEW_SIGNING_SECRET: secret }).previewSigningSecret).toBe(
+      secret,
+    );
+  });
+
+  it("is not needed when editing is off", () => {
+    expect(loadConfig(validEnv).previewSigningSecret).toBeUndefined();
+  });
+
+  it("is never named in the error", () => {
+    const error = captureError(() =>
+      loadConfig({ ...testMode, PREVIEW_SIGNING_SECRET: "leaky-value-123" }),
+    );
+
+    expect((error as ConfigError).message).not.toContain("leaky-value-123");
   });
 });

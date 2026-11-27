@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { parseEnv } from "node:util";
 import { defineConfig, devices } from "@playwright/test";
@@ -15,6 +16,10 @@ function databaseUrl(): string {
   }
   return "postgres://gdshub:gdshub@localhost:5432/gdshub";
 }
+
+// The tests that count rows connect to the same database directly, so they
+// need the same address in their environment, not just the server's.
+process.env.DATABASE_URL = databaseUrl();
 
 const baseURL = `http://localhost:${PORT}`;
 
@@ -69,6 +74,8 @@ export default defineConfig({
         DATABASE_URL: databaseUrl(),
         // The editing tests need unauthenticated test mode switched on.
         EDIT_MODE: "test",
+        // A new secret each run, so none is ever written down.
+        PREVIEW_SIGNING_SECRET: randomBytes(32).toString("hex"),
       },
     },
     {

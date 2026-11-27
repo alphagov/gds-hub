@@ -34,7 +34,18 @@ export const editPaths = {
   add: (key: EditEntityKey) => `${EDIT_PATH}/${key}/new`,
   record: (key: EditEntityKey, id: number) => `${EDIT_PATH}/${key}/${String(id)}`,
   delete: (key: EditEntityKey, id: number) => `${EDIT_PATH}/${key}/${String(id)}/delete`,
+  /** What a preview's buttons post to. `id` is left out for a record not yet added. */
+  preview: (key: EditEntityKey, id?: number) => stepPath(key, "preview", id),
+  publish: (key: EditEntityKey, id?: number) => stepPath(key, "publish", id),
+  /** Back to the form from a preview. */
+  resume: (key: EditEntityKey, id?: number) => stepPath(key, "continue", id),
 };
+
+function stepPath(key: EditEntityKey, step: string, id?: number): string {
+  return id === undefined
+    ? `${EDIT_PATH}/${key}/${step}`
+    : `${EDIT_PATH}/${key}/${String(id)}/${step}`;
+}
 
 /** What a change did, as the `saved` query parameter says after a redirect. */
 export const SAVED_RESULTS = ["created", "updated", "deleted"] as const;
@@ -241,6 +252,8 @@ export function presentEditForm({
       fieldViewModel(field, initial(field), choices[field.name] ?? [], errorFor.get(field.name)),
     ),
     cancel: { text: "Cancel", href: editPaths.list(key) },
+    previewAction:
+      record === undefined ? editPaths.preview(key) : editPaths.preview(key, record.id),
     latest:
       stale && record !== undefined
         ? { text: "Open the latest version", href: editPaths.record(key, record.id) }
