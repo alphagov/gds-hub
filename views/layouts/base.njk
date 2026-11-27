@@ -12,14 +12,17 @@
 {% extends "govuk/template.njk" %}
 
 {% from "govuk/components/breadcrumbs/macro.njk" import govukBreadcrumbs %}
+{% from "govuk/components/button/macro.njk" import govukButton %}
 {% from "govuk/components/generic-header/macro.njk" import govukGenericHeader %}
 {% from "govuk/components/notification-banner/macro.njk" import govukNotificationBanner %}
 {% from "govuk/components/phase-banner/macro.njk" import govukPhaseBanner %}
 {% from "govuk/components/service-navigation/macro.njk" import govukServiceNavigation %}
+{% from "govuk/components/warning-text/macro.njk" import govukWarningText %}
 
 {% block pageTitle %}{{ layout.documentTitle }}{% endblock %}
 
 {% block head %}
+  {% if page.preview %}<meta name="robots" content="noindex, nofollow">{% endif %}
   <link rel="stylesheet" href="{{ layout.assets.stylesheet }}">
   <link rel="stylesheet" href="{{ layout.assets.applicationStylesheet }}">
 {% endblock %}
@@ -65,7 +68,27 @@
     pages and the error pages that follow them.
   #}
   {% if layout.editNotice %}
-    {{ govukNotificationBanner({ text: layout.editNotice }) }}
+    {{ govukWarningText({ text: layout.editNotice, iconFallbackText: "Warning" }) }}
+  {% endif %}
+  {#
+    Shown on an editor's preview (page.preview): the page as it will look,
+    with nothing saved. Both buttons send the signed values back.
+  #}
+  {% if page.preview %}
+    {% set previewBanner %}
+      <p class="govuk-notification-banner__heading">{{ page.preview.text }}</p>
+      <div class="govuk-button-group">
+        <form method="post" action="{{ page.preview.save.action }}">
+          <input type="hidden" name="preview" value="{{ page.preview.token }}">
+          {{ govukButton({ text: page.preview.save.text, preventDoubleClick: true }) }}
+        </form>
+        <form method="post" action="{{ page.preview.edit.action }}">
+          <input type="hidden" name="preview" value="{{ page.preview.token }}">
+          {{ govukButton({ text: page.preview.edit.text, classes: "govuk-button--secondary" }) }}
+        </form>
+      </div>
+    {% endset %}
+    {{ govukNotificationBanner({ titleText: "Preview", html: previewBanner }) }}
   {% endif %}
   <div class="govuk-grid-row">
     {% if hasContents %}

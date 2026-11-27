@@ -14,6 +14,8 @@ services:
       # The app is built with NODE_ENV=production, so test mode needs both.
       EDIT_MODE: ${EDIT_MODE:-}
       ALLOW_UNAUTHENTICATED_EDITING: ${ALLOW_UNAUTHENTICATED_EDITING:-}
+      # At least 32 characters. Needed when EDIT_MODE=test. Make your own; never commit it.
+      PREVIEW_SIGNING_SECRET: ${PREVIEW_SIGNING_SECRET:-}
     depends_on:
       db:
         condition: service_healthy

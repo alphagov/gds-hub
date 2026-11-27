@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { ConfigError, loadConfig } from "../../src/config.js";
 
 const validEnv = { DATABASE_URL: "postgres://user:pass@localhost:5432/hub" };
+// Invented, and long enough: test mode editing won't start without one.
+const SIGNING_SECRET = "a-long-secret-for-signing-previews-0123456789";
 
 function captureError(fn: () => unknown): unknown {
   try {
@@ -30,11 +32,19 @@ describe("loadConfig", () => {
   });
 
   it("turns on unauthenticated test mode editing only when asked", () => {
-    expect(loadConfig({ ...validEnv, EDIT_MODE: "test" }).editMode).toBe("test");
+    expect(
+      loadConfig({ ...validEnv, EDIT_MODE: "test", PREVIEW_SIGNING_SECRET: SIGNING_SECRET })
+        .editMode,
+    ).toBe("test");
   });
 
   it("needs a second setting before production allows unauthenticated editing", () => {
-    const production = { ...validEnv, NODE_ENV: "production", EDIT_MODE: "test" };
+    const production = {
+      ...validEnv,
+      NODE_ENV: "production",
+      EDIT_MODE: "test",
+      PREVIEW_SIGNING_SECRET: SIGNING_SECRET,
+    };
     expect(() => loadConfig(production)).toThrow(ConfigError);
     expect(() => loadConfig({ ...production, ALLOW_UNAUTHENTICATED_EDITING: "true" })).toThrow(
       ConfigError,
@@ -119,6 +129,6 @@ describe("the preview signing secret", () => {
       loadConfig({ ...testMode, PREVIEW_SIGNING_SECRET: "leaky-value-123" }),
     );
 
-    expect(String((error as ConfigError).message)).not.toContain("leaky-value-123");
+    expect((error as ConfigError).message).not.toContain("leaky-value-123");
   });
 });

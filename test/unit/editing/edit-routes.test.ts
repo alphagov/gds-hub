@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createApp, type AppDependencies } from "../../../src/app.js";
 import { type EditorIdentityProvider } from "../../../src/editing/editor-identity.js";
+import { createPreviewSigner } from "../../../src/editing/preview-signing.js";
 import {
   createTestModeIdentity,
   TEST_MODE_ACTOR_EMAIL,
@@ -56,7 +57,11 @@ async function start({
   await running?.close();
   const editing: AppDependencies["editing"] = off
     ? undefined
-    : { identity: identity ?? createTestModeIdentity(), service: service };
+    : {
+        identity: identity ?? createTestModeIdentity(),
+        service: service,
+        previewSigner: createPreviewSigner({ secret: "edit-route-test-secret-".padEnd(40, "x") }),
+      };
   running = await startApp(
     createApp({
       config: testConfig,

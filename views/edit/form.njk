@@ -48,6 +48,12 @@
 
         <div class="govuk-button-group">
           {{ govukButton({ text: "Save", preventDoubleClick: true }) }}
+          {{ govukButton({
+            text: "Preview",
+            classes: "govuk-button--secondary",
+            preventDoubleClick: true,
+            attributes: { formaction: page.previewAction }
+          }) }}
           <a class="govuk-link" href="{{ page.cancel.href }}">{{ page.cancel.text }}</a>
         </div>
       </form>

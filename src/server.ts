@@ -1,5 +1,6 @@
 import { createApp } from "./app.js";
 import { ConfigError, loadConfig, type Config } from "./config.js";
+import { createPreviewSigner } from "./editing/preview-signing.js";
 import { createTestModeIdentity } from "./editing/test-mode.js";
 import { createJsonLogger } from "./lib/logger.js";
 import { connectRepositories } from "./repositories/index.js";
@@ -56,7 +57,12 @@ const redirects = createRedirectService(database.repositories);
 // verifies the Lambda@Edge JWT (see docs/editing.md).
 const editing =
   config.editMode === "test"
-    ? { identity: createTestModeIdentity(), service: createEditService(database.repositories) }
+    ? {
+        identity: createTestModeIdentity(),
+        service: createEditService(database.repositories),
+        // loadConfig makes sure the secret is there whenever editing is on.
+        previewSigner: createPreviewSigner({ secret: config.previewSigningSecret ?? "" }),
+      }
     : undefined;
 if (editing !== undefined) {
   logger.warn(

@@ -47,7 +47,7 @@ describe("createPreviewSigner", () => {
 
   it("works for a new record, which has no id", () => {
     const signer = signerAt(START);
-    const { id: _id, loadedAt: _loadedAt, ...created } = payload;
+    const created = { entity: payload.entity, actor: payload.actor, values: payload.values };
 
     const result = signer.verify(signer.sign(created), { entity: "vendors", actor: payload.actor });
 

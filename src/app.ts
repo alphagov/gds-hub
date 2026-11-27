@@ -3,6 +3,7 @@ import express, { type Express, type Response } from "express";
 import helmet from "helmet";
 import type { Config } from "./config.js";
 import type { EditorIdentityProvider } from "./editing/editor-identity.js";
+import type { PreviewSigner } from "./editing/preview-signing.js";
 import type { Logger } from "./lib/logger.js";
 import { createRenderer } from "./lib/render.js";
 import { cspNonce } from "./middleware/csp-nonce.js";
@@ -40,6 +41,8 @@ export interface AppDependencies {
     /** Says who is editing. Test mode gives an unverified actor; a real provider verifies one. */
     identity: EditorIdentityProvider;
     service: EditService;
+    /** Signs the payload that carries a preview's values to the save. */
+    previewSigner: PreviewSigner;
   };
 }
 
@@ -79,7 +82,12 @@ export function createApp({
   app.use(contentRouter(renderer, catalogue, content));
   app.use(pagesRouter(renderer, catalogue));
   if (editing !== undefined) {
-    app.use(editRouter(renderer, editing.identity, editing.service));
+    app.use(
+      editRouter(renderer, editing.identity, editing.service, editing.previewSigner, {
+        catalogue,
+        content,
+      }),
+    );
   }
   if (config.nodeEnv === "test") {
     app.use(testOnlyRouter());

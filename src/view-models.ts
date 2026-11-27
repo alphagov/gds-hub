@@ -52,8 +52,22 @@ export interface PageViewModel {
   readonly section?: SectionKey;
   /** Shown down the left of the page. Error pages have none. */
   readonly contents?: ContentsViewModel;
-  /** The page shows an error summary: its document title starts with "Error: ". */
+  /** The page ends with an error summary: its document title starts with "Error: ". */
   readonly hasError?: boolean;
+  /**
+   * Set when the page is an editor's preview, not a saved record. The page
+   * then shows the preview banner and asks search engines not to index it.
+   */
+  readonly preview?: PreviewViewModel;
+}
+
+/** What the preview banner needs: the signed payload and where each button posts. */
+export interface PreviewViewModel {
+  readonly text: string;
+  /** Signed values, sent back by both buttons. */
+  readonly token: string;
+  readonly save: { readonly text: string; readonly action: string };
+  readonly edit: { readonly text: string; readonly action: string };
 }
 
 /** Read by layouts/listing.njk. */
@@ -300,6 +314,14 @@ export interface EditFormViewModel extends CataloguePageViewModel {
   readonly latest: LinkItem | null;
   /** The link to delete the record. Null for a new one. */
   readonly delete: LinkItem | null;
+  /** Where the Preview button posts to. */
+  readonly previewAction: string;
+}
+
+/** Shown when a preview can't be used, with a way back to the form. */
+export interface EditProblemViewModel extends PageViewModel {
+  readonly errors: readonly ErrorSummaryItem[];
+  readonly back: LinkItem;
 }
 
 /** The page that asks for confirmation before a record is deleted. */
@@ -334,6 +356,7 @@ export interface Views {
   "edit/list.njk": EditListViewModel;
   "edit/form.njk": EditFormViewModel;
   "edit/delete.njk": EditDeleteViewModel;
+  "edit/problem.njk": EditProblemViewModel;
   "errors/403.njk": ErrorViewModel;
   "errors/404.njk": ErrorViewModel;
   "errors/500.njk": ErrorViewModel;

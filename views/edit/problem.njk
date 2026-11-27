@@ -1,0 +1,12 @@
+{# A preview that can't be used: what is wrong, and the way back to the form. #}
+{% extends "layouts/catalogue.njk" %}
+{% from "partials/edit-notices.njk" import errorSummary %}
+
+{% block heading %}
+  {{ errorSummary(page.errors) }}
+  {{ super() }}
+{% endblock %}
+
+{% block body %}
+  <p class="govuk-body"><a class="govuk-link" href="{{ page.back.href }}">{{ page.back.text }}</a></p>
+{% endblock %}

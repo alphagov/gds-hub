@@ -61,7 +61,7 @@ beforeAll(async () => {
     { slug: "compass-co", name: "Compass Co", description: "Makes compasses." },
     systemActor("unauthenticated_test_mode"),
   );
-  vendorId = Number(vendor.id);
+  vendorId = vendor.id;
   loadedAt = new Date((vendor as { updatedAt: Date }).updatedAt).toISOString();
   running = await startApp(
     createApp({

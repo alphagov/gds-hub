@@ -2,9 +2,15 @@ import express, { Router, type Request, type RequestHandler, type Response } fro
 import { refuseCrossSiteWrites } from "../editing/cross-site.js";
 import { requireEditor, type EditorIdentityProvider } from "../editing/editor-identity.js";
 import { EDIT_ENTITIES, editEntityFrom, type EditEntityKey } from "../editing/entities.js";
-import { parseForm, type FormError } from "../editing/form.js";
+import { parseForm, type FormError, type ParsedForm } from "../editing/form.js";
+import type { PreviewPayload, PreviewSigner } from "../editing/preview-signing.js";
 import { HttpError } from "../lib/http-error.js";
 import type { Renderer } from "../lib/render.js";
+import {
+  presentPreview,
+  presentPreviewBanner,
+  presentPreviewProblem,
+} from "../presenters/preview.js";
 import {
   EDIT_PATH,
   editPaths,
@@ -16,7 +22,10 @@ import {
 } from "../presenters/edit.js";
 import { RepositoryError } from "../repositories/errors.js";
 import type { Actor } from "../services/audit/actor.js";
+import type { CatalogueService } from "../services/catalogue/catalogue-service.js";
+import type { ContentService } from "../services/content/content-service.js";
 import type { EditService } from "../services/editing/edit-service.js";
+import { createPreviewService } from "../services/editing/preview-service.js";
 
 // The editing pages. They are only mounted when editing is switched on, and
 // every response is Cache-Control: no-store.
@@ -95,8 +104,11 @@ export function editRouter(
   renderer: Renderer,
   identity: EditorIdentityProvider,
   service: EditService,
+  signer: PreviewSigner,
+  reading: { readonly catalogue: CatalogueService; readonly content: ContentService },
 ): Router {
   const router = Router();
+  const previews = createPreviewService(reading.catalogue, reading.content, service);
 
   /**
    * Runs an async handler, passing any failure to the error handler. A
@@ -161,6 +173,186 @@ export function editRouter(
     await renderer.render(res, "edit/delete.njk", presentEditDelete(key, record, [problem]), 409);
   }
 
+  /** Adds a record from values that have passed the form's checks. */
+  async function saveCreate(
+    res: Response,
+    key: EditEntityKey,
+    parsed: Extract<ParsedForm, { ok: true }>,
+  ): Promise<void> {
+    try {
+      const created = await service.create(key, parsed.values, actorOf(res));
+      res.redirect(303, `${editPaths.record(key, created.id)}?saved=created`);
+    } catch (error) {
+      const failure = repositoryProblem(error, ["duplicate", "invalid_reference", "invalid_value"]);
+      if (failure === undefined) throw error;
+      await showForm(res, key, 400, {
+        problems: [WRITE_PROBLEMS[failure.kind] ?? ""],
+        submitted: parsed.submitted,
+      });
+    }
+  }
+
+  /** Saves changes from values that have passed the form's checks. */
+  async function saveUpdate(
+    res: Response,
+    key: EditEntityKey,
+    id: number,
+    parsed: Extract<ParsedForm, { ok: true }>,
+    loaded: { readonly date: Date; readonly text: string },
+  ): Promise<void> {
+    try {
+      await service.update(key, id, parsed.values, actorOf(res), loaded.date);
+      res.redirect(303, `${editPaths.record(key, id)}?saved=updated`);
+    } catch (error) {
+      const failure = repositoryProblem(error, [
+        "stale",
+        "duplicate",
+        "invalid_reference",
+        "invalid_value",
+      ]);
+      if (failure === undefined) throw error;
+      const stale = failure.kind === "stale";
+      await showForm(res, key, stale ? 409 : 400, {
+        id,
+        problems: [stale ? STALE_PROBLEM : (WRITE_PROBLEMS[failure.kind] ?? "")],
+        submitted: parsed.submitted,
+        updatedAt: loaded.text,
+        stale,
+      });
+    }
+  }
+
+  /**
+   * The payload of a preview, if this app made it for this editor and this
+   * record and it is still fresh. If not, the problem page is shown (400) and
+   * nothing is taken from the payload.
+   */
+  async function openPreview(
+    req: Request,
+    res: Response,
+    key: EditEntityKey,
+    id: number | undefined,
+  ): Promise<PreviewPayload | undefined> {
+    const body = formBody(req);
+    const token =
+      typeof body === "object" && body !== null && "preview" in body ? body.preview : undefined;
+    const result =
+      typeof token === "string"
+        ? signer.verify(token, {
+            entity: key,
+            ...(id === undefined ? {} : { id }),
+            actor: actorOf(res).email,
+          })
+        : undefined;
+    // A saved record's payload also has to say when its form was loaded.
+    const hasLoadTime =
+      id === undefined ||
+      (result?.ok === true &&
+        result.payload.loadedAt !== undefined &&
+        FORM_TIMESTAMP.test(result.payload.loadedAt));
+    if (result?.ok !== true || !hasLoadTime) {
+      await renderer.render(res, "edit/problem.njk", presentPreviewProblem(key, id), 400);
+      return undefined;
+    }
+    return result.payload;
+  }
+
+  // A preview, and the two things an editor can do with it. They come before
+  // the routes that take an id, so "preview" is never read as one.
+  for (const withId of [false, true]) {
+    const base = withId ? "/edit/:entity/:id" : "/edit/:entity";
+    const idOf = (req: Request): number | undefined => (withId ? idFrom(req) : undefined);
+
+    router.post(
+      `${base}/preview`,
+      form,
+      route(async (req, res) => {
+        res.set("X-Robots-Tag", "noindex, nofollow");
+        const key = entityFrom(req);
+        const id = idOf(req);
+        const body = formBody(req);
+        const loaded = id === undefined ? undefined : loadedAt(body);
+        const parsed = parseForm(EDIT_ENTITIES[key], body, id === undefined ? "create" : "update");
+        if (!parsed.ok) {
+          await showForm(res, key, 400, {
+            ...parsed,
+            ...(id === undefined ? {} : { id }),
+            ...(loaded === undefined ? {} : { updatedAt: loaded.text }),
+          });
+          return;
+        }
+        const data = await previews.build(key, id, parsed.values);
+        const token = signer.sign({
+          entity: key,
+          ...(id === undefined || loaded === undefined ? {} : { id, loadedAt: loaded.text }),
+          actor: actorOf(res).email,
+          values: parsed.submitted,
+        });
+        const shown = presentPreview(
+          data,
+          presentPreviewBanner(key, id, token, data.kind === "pages" && data.notShownToReaders),
+        );
+        switch (shown.template) {
+          case "pages/vendor.njk":
+            await renderer.render(res, shown.template, shown.page);
+            break;
+          case "pages/tool.njk":
+            await renderer.render(res, shown.template, shown.page);
+            break;
+          case "pages/instance.njk":
+            await renderer.render(res, shown.template, shown.page);
+            break;
+          case "pages/product-team-service.njk":
+            await renderer.render(res, shown.template, shown.page);
+            break;
+          case "pages/content-page.njk":
+            await renderer.render(res, shown.template, shown.page);
+            break;
+        }
+      }),
+    );
+
+    router.post(
+      `${base}/publish`,
+      form,
+      route(async (req, res) => {
+        const key = entityFrom(req);
+        const id = idOf(req);
+        const payload = await openPreview(req, res, key, id);
+        if (payload === undefined) return;
+        // The values are checked again: the signature shows who made the payload, not that it is valid.
+        const parsed = parseForm(
+          EDIT_ENTITIES[key],
+          payload.values,
+          id === undefined ? "create" : "update",
+        );
+        if (id === undefined) {
+          if (parsed.ok) await saveCreate(res, key, parsed);
+          else await showForm(res, key, 400, parsed);
+          return;
+        }
+        const text = payload.loadedAt ?? "";
+        if (parsed.ok) await saveUpdate(res, key, id, parsed, { date: new Date(text), text });
+        else await showForm(res, key, 400, { ...parsed, id, updatedAt: text });
+      }),
+    );
+
+    router.post(
+      `${base}/continue`,
+      form,
+      route(async (req, res) => {
+        const key = entityFrom(req);
+        const id = idOf(req);
+        const payload = await openPreview(req, res, key, id);
+        if (payload === undefined) return;
+        await showForm(res, key, 200, {
+          ...(id === undefined ? {} : { id, updatedAt: payload.loadedAt ?? "" }),
+          submitted: payload.values,
+        });
+      }),
+    );
+  }
+
   router.get(EDIT_PATH, (_req, res, next) => {
     renderer.render(res, "edit/index.njk", presentEditIndex()).catch(next);
   });
@@ -197,21 +389,7 @@ export function editRouter(
         await showForm(res, key, 400, parsed);
         return;
       }
-      try {
-        const created = await service.create(key, parsed.values, actorOf(res));
-        res.redirect(303, `${editPaths.record(key, created.id)}?saved=created`);
-      } catch (error) {
-        const failure = repositoryProblem(error, [
-          "duplicate",
-          "invalid_reference",
-          "invalid_value",
-        ]);
-        if (failure === undefined) throw error;
-        await showForm(res, key, 400, {
-          problems: [WRITE_PROBLEMS[failure.kind] ?? ""],
-          submitted: parsed.submitted,
-        });
-      }
+      await saveCreate(res, key, parsed);
     }),
   );
 
@@ -243,26 +421,7 @@ export function editRouter(
         await showForm(res, key, 400, { ...parsed, id, updatedAt: loaded.text });
         return;
       }
-      try {
-        await service.update(key, id, parsed.values, actorOf(res), loaded.date);
-        res.redirect(303, `${editPaths.record(key, id)}?saved=updated`);
-      } catch (error) {
-        const failure = repositoryProblem(error, [
-          "stale",
-          "duplicate",
-          "invalid_reference",
-          "invalid_value",
-        ]);
-        if (failure === undefined) throw error;
-        const stale = failure.kind === "stale";
-        await showForm(res, key, stale ? 409 : 400, {
-          id,
-          problems: [stale ? STALE_PROBLEM : (WRITE_PROBLEMS[failure.kind] ?? "")],
-          submitted: parsed.submitted,
-          updatedAt: loaded.text,
-          stale,
-        });
-      }
+      await saveUpdate(res, key, id, parsed, loaded);
     }),
   );
 

@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import pg from "pg";
@@ -28,7 +29,7 @@ async function addVendor(page: Page, slug: string, name: string): Promise<void> 
 test("preview shows the new text without saving it", async ({ page }) => {
   const { slug, name } = unique();
   await addVendor(page, slug, name);
-  const auditBefore = await auditCount();
+  const auditBefore = await auditCount(slug);
 
   await page.getByLabel("Description").fill("Text that is only a preview.");
   await page.getByRole("button", { name: "Preview" }).click();
@@ -41,7 +42,7 @@ test("preview shows the new text without saving it", async ({ page }) => {
   expect(live?.status()).toBe(200);
   await expect(page.getByText("The saved description.")).toBeVisible();
   await expect(page.getByText("Text that is only a preview.")).toHaveCount(0);
-  expect(await auditCount()).toBe(auditBefore);
+  expect(await auditCount(slug)).toBe(auditBefore);
 });
 
 test("save and publish from a preview saves what was previewed", async ({ page }) => {
@@ -95,7 +96,7 @@ test("a changed payload is refused and nothing is saved", async ({ page }) => {
   await addVendor(page, slug, name);
   await page.getByLabel("Description").fill("Honest text.");
   await page.getByRole("button", { name: "Preview" }).click();
-  const auditBefore = await auditCount();
+  const auditBefore = await auditCount(slug);
 
   await page.evaluate(() => {
     const field = document.querySelector<HTMLInputElement>("input[name=preview]");
@@ -106,7 +107,7 @@ test("a changed payload is refused and nothing is saved", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await page.goto(`/vendors/${slug}`);
   await expect(page.getByText("Honest text.")).toHaveCount(0);
-  expect(await auditCount()).toBe(auditBefore);
+  expect(await auditCount(slug)).toBe(auditBefore);
 });
 
 test("a preview with mistakes shows what is wrong and keeps what you typed", async ({ page }) => {
@@ -121,6 +122,7 @@ test("a preview with mistakes shows what is wrong and keeps what you typed", asy
 });
 
 test("the preview page passes the accessibility checks", async ({ page }) => {
+  test.skip(test.info().project.use.javaScriptEnabled === false, "axe needs JavaScript");
   const { slug, name } = unique();
   await addVendor(page, slug, name);
   await page.getByRole("button", { name: "Preview" }).click();
@@ -146,14 +148,17 @@ test("a preview is not cached or indexed", async ({ page }) => {
 });
 
 /**
- * How many audit rows the e2e database holds, counted directly so the test
+ * How many audit rows exist for the record with this slug, counted directly so the test
  * doesn't rely on the app to say nothing was written.
  */
-async function auditCount(): Promise<number> {
+async function auditCount(slug: string): Promise<number> {
   const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
   try {
-    const result = await client.query<{ count: string }>("SELECT count(*) FROM audit_log");
+    const result = await client.query<{ count: string }>(
+      "SELECT count(*) FROM audit_log WHERE after->>'slug' = $1 OR before->>'slug' = $1",
+      [slug],
+    );
     return Number(result.rows[0]?.count);
   } finally {
     await client.end();
