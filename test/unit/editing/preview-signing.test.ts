@@ -73,13 +73,16 @@ describe("createPreviewSigner", () => {
 describe("a payload that has been tampered with", () => {
   it("is refused when a value is changed", () => {
     const signer = signerAt(START);
-    const [body, signature] = signer.sign(payload).split(".");
+    const [body = "", signature] = signer.sign(payload).split(".");
+    // A real signed body with one value changed and everything else as signed,
+    // so only the signature can tell it has been tampered with.
+    const signed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as PreviewPayload;
     const forged = Buffer.from(
-      JSON.stringify({ ...payload, values: { ...payload.values, name: "Evil Co" } }),
+      JSON.stringify({ ...signed, values: { ...signed.values, name: "Evil Co" } }),
     ).toString("base64url");
 
+    expect(signer.verify(`${body}.${signature}`, expected).ok).toBe(true);
     expect(signer.verify(`${forged}.${signature}`, expected).ok).toBe(false);
-    expect(body).toBeTruthy();
   });
 
   it("is refused when the signature is changed", () => {

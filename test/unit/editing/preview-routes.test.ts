@@ -168,6 +168,49 @@ describe("previewing a change", () => {
     expect(html).not.toContain("<script>alert(1)");
   });
 
+  const PAGE_VALUES = {
+    title: "Device rules",
+    pageType: "policy",
+    summary: "",
+    bodyMarkdown: "## Scope",
+    ownerName: "",
+    ownerContact: "",
+    productTeamServiceId: "",
+    status: "published",
+    lastReviewedAt: "",
+    updatedAt: CHANGED_AT.toISOString(),
+  };
+
+  it("offers to save a draft, not publish it, when the page is a draft", async () => {
+    await start();
+
+    const draft = await previewOf("/edit/pages/5/preview", { ...PAGE_VALUES, status: "draft" });
+    const published = await previewOf("/edit/pages/5/preview", PAGE_VALUES);
+
+    expect(formWithButton(draft.html, "Save draft").action).toBe("/edit/pages/5/publish");
+    expect(cheerio.load(draft.html)("button").text()).not.toContain(SAVE);
+    expect(formWithButton(published.html, SAVE).action).toBe("/edit/pages/5/publish");
+  });
+
+  it("shows the form again with what was typed when a chosen record has been deleted", async () => {
+    const service = await start();
+
+    // The fake has no team 1 (the form's choices list it), as if it were deleted since.
+    const { response, html } = await previewOf("/edit/pages/5/preview", {
+      ...PAGE_VALUES,
+      title: "Typed title",
+      productTeamServiceId: "1",
+    });
+    const $ = cheerio.load(html);
+
+    expect(response.status).toBe(400);
+    expect($(".govuk-error-summary").text()).toContain("no longer exists");
+    expect($("input[name=title]").attr("value")).toBe("Typed title");
+    expect($("input[name=updatedAt]").attr("value")).toBe(CHANGED_AT.toISOString());
+    expect($(".govuk-notification-banner").text()).not.toMatch(/not saved/i);
+    expect(service.writes).toEqual([]);
+  });
+
   it("shows the form again with what is wrong when the values are not valid", async () => {
     const service = await start();
 
@@ -275,9 +318,13 @@ describe("saving from a preview", () => {
     const service = await start();
     const { html } = await previewOf("/edit/vendors/3/preview", VENDOR_VALUES);
     const { action, preview } = formWithButton(html, SAVE);
-    const [, signature] = preview.split(".");
+    const [body = "", signature] = preview.split(".");
+    // The real signed body with only the name changed, so only the signature can refuse it.
+    const signed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as {
+      values: Record<string, string>;
+    };
     const forged = Buffer.from(
-      JSON.stringify({ entity: "vendors", id: 3, values: { ...VENDOR_VALUES, name: "Evil Co" } }),
+      JSON.stringify({ ...signed, values: { ...signed.values, name: "Evil Co" } }),
     ).toString("base64url");
 
     const response = await post(action, { preview: `${forged}.${signature}` });

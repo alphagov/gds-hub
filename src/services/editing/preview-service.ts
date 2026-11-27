@@ -51,7 +51,8 @@ export interface PreviewService {
   /**
    * The details for a preview of `values` as the record `id` (or as a new
    * record when there is no id). Throws RepositoryError("not_found") if the
-   * record doesn't exist.
+   * record doesn't exist, and RepositoryError("invalid_reference") if a choice
+   * in the form names a record that is gone or can't go with the rest.
    */
   build(key: EditEntityKey, id: number | undefined, values: EditValues): Promise<PreviewData>;
 }
@@ -177,6 +178,15 @@ function withValues<T extends object>(record: T, values: EditValues): T {
   return changed as T;
 }
 
+/**
+ * A choice in the form that the database would refuse: the record it names is
+ * gone, or can't go with the rest of the record. The route shows the form
+ * again with what was typed, as it does for a refused save.
+ */
+function missingChoice(subject: RepositorySubject): RepositoryError {
+  return new RepositoryError("invalid_reference", subject, { operation: "read" });
+}
+
 function sectionOf(pageType: PageRecord["pageType"]): ContentSection | undefined {
   return (Object.keys(READER_PAGE_TYPES) as ContentSection[]).find((section) =>
     (READER_PAGE_TYPES[section] as readonly string[]).includes(pageType),
@@ -210,9 +220,19 @@ export function createPreviewService(
   async function vendorChosen(vendorId: unknown): Promise<VendorRecord | null> {
     if (typeof vendorId !== "number") return null;
     const found = await editing.find("vendors", vendorId);
-    return found === undefined
-      ? null
-      : withValues(blankVendor(), { ...found.values, id: vendorId });
+    if (found === undefined) throw missingChoice("vendor");
+    return withValues(blankVendor(), { ...found.values, id: vendorId });
+  }
+
+  /** The team that owns a page, as the page links to it, for a team chosen in the form. */
+  async function ownerChosen(teamId: number | null): Promise<PageDetail["productTeamService"]> {
+    if (teamId === null) return null;
+    const found = await editing.find("services", teamId);
+    const { slug, name } = found?.values ?? {};
+    if (typeof slug !== "string" || typeof name !== "string") {
+      throw missingChoice("product_team_service");
+    }
+    return { id: teamId, key: slug, slug, name };
   }
 
   async function toolChosen(toolId: unknown): Promise<InstanceDetail["tool"] | undefined> {
@@ -265,8 +285,11 @@ export function createPreviewService(
           const instance = withValues(base?.instance ?? blankInstance(), { ...typed, key: slug });
           const tool =
             base?.tool.id === instance.toolId ? base.tool : await toolChosen(instance.toolId);
-          if (tool === undefined) {
-            throw new RepositoryError("invalid_reference", "tool", { operation: "read" });
+          if (tool === undefined) throw missingChoice("tool");
+          // The contract can't be changed in the form, and the database only
+          // accepts one for the instance's own tool, so a save would be refused.
+          if (base !== undefined && base.contract !== null && base.tool.id !== instance.toolId) {
+            throw missingChoice("contract");
           }
           return {
             kind: key,
@@ -307,12 +330,7 @@ export function createPreviewService(
         case "pages": {
           const page = withValues(blankPage(), typed);
           const section = sectionOf(page.pageType);
-          const directory =
-            page.productTeamServiceId === null ? undefined : await catalogue.serviceDirectory();
-          const owner = [
-            ...(directory?.businessUnits.flatMap((unit) => unit.productTeamServices) ?? []),
-            ...(directory?.unassigned ?? []),
-          ].find((team) => team.id === page.productTeamServiceId);
+          const owner = await ownerChosen(page.productTeamServiceId);
           return {
             kind: key,
             groups,
@@ -320,10 +338,7 @@ export function createPreviewService(
             notShownToReaders: section === undefined,
             detail: {
               page,
-              productTeamService:
-                owner === undefined
-                  ? null
-                  : { id: owner.id, key: owner.key, slug: owner.slug, name: owner.name },
+              productTeamService: owner,
             },
           };
         }

@@ -52,7 +52,7 @@ To stop everything, run `docker compose down`. Add `-v` to delete the database v
 
 ### Try editing in the browser
 
-Editing is off by default. To try it, add these two lines to `.env` (create it with `cp .env.example .env` if you haven't):
+Editing is off by default. To try it, add these lines to `.env` (create it with `cp .env.example .env` if you haven't):
 
 ```
 EDIT_MODE=test
@@ -70,7 +70,7 @@ npm run db:reset
 docker compose up -d --build
 ```
 
-Open <http://localhost:3000/edit>. Anyone who can reach the app can edit while this is on, so only do this on your own machine. Remove the two lines (or leave them blank) and run `docker compose up -d` again to switch editing off. See [Editing in test mode](#editing-in-test-mode).
+Open <http://localhost:3000/edit>. Anyone who can reach the app can edit while this is on, so only do this on your own machine. Remove these lines (or leave them blank) and run `docker compose up -d` again to switch editing off. See [Editing in test mode](#editing-in-test-mode).
 
 ## Run the app locally for development
 
@@ -191,7 +191,7 @@ Editing in the browser is off by default: every `/edit` address gives page not f
 
 Use it only where access is already limited, such as behind the WAF IP allow-list, until editors are verified. Any other value of `EDIT_MODE` stops the app starting, and so does `EDIT_MODE=test` in production unless `ALLOW_UNAUTHENTICATED_EDITING=yes` is also set. To add an editable kind of record, or to replace test mode with a provider that verifies the sign-in token, see [docs/editing.md](docs/editing.md).
 
-Every edit form has a Preview button. It shows the real page with what you typed, and saves nothing. From the preview you can save and publish, or go back and keep editing. The typed values travel in a signed payload that lasts 30 minutes and only works for the editor and record it was made for, so `PREVIEW_SIGNING_SECRET` must be set whenever `EDIT_MODE=test`.
+Every edit form has a Preview button. It shows the real page with what you typed, and saves nothing. From the preview you can save and publish, or go back and keep editing. The typed values travel in a signed payload that lasts 30 minutes and only works for the actor and record it was made for, so `PREVIEW_SIGNING_SECRET` must be set whenever `EDIT_MODE=test`. In test mode everyone is the same actor, so a copied payload works for anyone until editors are verified.
 
 ## Scripts
 

@@ -122,7 +122,7 @@ A short summary of each completed phase. The full handover for each phase (what 
 
 - Every edit form has a Preview button. It shows the real page with the typed values in place of the saved ones, a banner saying nothing is saved, and `noindex, nofollow`.
 - Preview never writes. The banner offers save and publish, which saves through the normal edit service and audit entry, or continue editing, which gives the form back as it was typed.
-- The values travel in a signed payload tied to the editor and the record. It is refused if it was changed, has expired (30 minutes) or was made for someone else, and the values are checked again when saved.
+- The values travel in a signed payload tied to the actor and the record (in test mode everyone is the same actor). It is refused if it was changed, has expired (30 minutes) or was made for another actor or record, and the values are checked again when saved.
 - `PREVIEW_SIGNING_SECRET` (at least 32 characters) is now needed when `EDIT_MODE=test`. The Terraform doesn't set it yet.
 - Run `test:e2e` against `gdshub_e2e_seed`, not the general development database. The preview e2e tests no longer depend on the other project's writes.
 - The JWT checks from Phase 8 are still to do. See [progress-phase9.md](progress-phase9.md).

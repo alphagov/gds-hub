@@ -38,12 +38,16 @@ export function presentPreviewBanner(
   key: EditEntityKey,
   id: number | undefined,
   token: string,
-  notShownToReaders: boolean,
+  page: { readonly notShownToReaders: boolean; readonly draft: boolean },
 ): PreviewViewModel {
   return {
-    text: notShownToReaders ? `${BANNER_TEXT}${NOT_SHOWN_TEXT}` : BANNER_TEXT,
+    text: page.notShownToReaders ? `${BANNER_TEXT}${NOT_SHOWN_TEXT}` : BANNER_TEXT,
     token,
-    save: { text: "Save and publish", action: editPaths.publish(key, id) },
+    // A draft stays hidden from readers when it is saved, so it isn't "published".
+    save: {
+      text: page.draft ? "Save draft" : "Save and publish",
+      action: editPaths.publish(key, id),
+    },
     edit: { text: "Continue editing", action: editPaths.resume(key, id) },
   };
 }

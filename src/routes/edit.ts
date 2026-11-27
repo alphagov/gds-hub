@@ -281,7 +281,20 @@ export function editRouter(
           });
           return;
         }
-        const data = await previews.build(key, id, parsed.values);
+        let data: Awaited<ReturnType<typeof previews.build>>;
+        try {
+          data = await previews.build(key, id, parsed.values);
+        } catch (error) {
+          // A choice that is gone, such as a vendor deleted since the form opened.
+          if (repositoryProblem(error, ["invalid_reference"]) === undefined) throw error;
+          await showForm(res, key, 400, {
+            problems: [WRITE_PROBLEMS.invalid_reference ?? ""],
+            submitted: parsed.submitted,
+            ...(id === undefined ? {} : { id }),
+            ...(loaded === undefined ? {} : { updatedAt: loaded.text }),
+          });
+          return;
+        }
         const token = signer.sign({
           entity: key,
           ...(id === undefined || loaded === undefined ? {} : { id, loadedAt: loaded.text }),
@@ -290,7 +303,10 @@ export function editRouter(
         });
         const shown = presentPreview(
           data,
-          presentPreviewBanner(key, id, token, data.kind === "pages" && data.notShownToReaders),
+          presentPreviewBanner(key, id, token, {
+            notShownToReaders: data.kind === "pages" && data.notShownToReaders,
+            draft: data.kind === "pages" && data.detail.page.status === "draft",
+          }),
         );
         switch (shown.template) {
           case "pages/vendor.njk":

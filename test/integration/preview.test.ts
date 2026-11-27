@@ -23,8 +23,8 @@ const SECRET = "integration-secret-".padEnd(40, "x");
 let testDatabase: TestDatabase | undefined;
 let db: Database;
 let running: RunningApp | undefined;
+let repos: ReturnType<typeof createRepositories>;
 let vendorId: number;
-let loadedAt: string;
 
 /** Every table's row count and a fingerprint of its contents, so any change shows. */
 async function snapshot(): Promise<Record<string, string>> {
@@ -56,13 +56,12 @@ beforeAll(async () => {
   const created = await createMigratedTestDatabase();
   testDatabase = created;
   db = created.db;
-  const repos = createRepositories(created.db);
+  repos = createRepositories(created.db);
   const vendor = await repos.vendors.create(
     { slug: "compass-co", name: "Compass Co", description: "Makes compasses." },
     systemActor("unauthenticated_test_mode"),
   );
   vendorId = vendor.id;
-  loadedAt = new Date((vendor as { updatedAt: Date }).updatedAt).toISOString();
   running = await startApp(
     createApp({
       config: testConfig,
@@ -84,13 +83,19 @@ afterAll(async () => {
   await testDatabase?.drop();
 });
 
-function previewValues(): Record<string, string> {
+/** When the vendor was last changed, as the edit form would send it back. */
+async function currentVersion(): Promise<string> {
+  const vendor = await repos.vendors.getById(vendorId);
+  return new Date((vendor as { updatedAt: Date } | undefined)?.updatedAt ?? 0).toISOString();
+}
+
+async function previewValues(): Promise<Record<string, string>> {
   return {
     slug: "compass-co",
     name: "Compass Co Renamed",
     description: "Words typed but not yet saved.",
     url: "",
-    updatedAt: loadedAt,
+    updatedAt: await currentVersion(),
   };
 }
 
@@ -98,12 +103,10 @@ describe("previewing", () => {
   it("changes no table, including the audit log", async () => {
     const before = await snapshot();
 
-    const changed = await post(`/edit/vendors/${vendorId}/preview`, previewValues());
-    const added = await post("/edit/vendors/preview", { ...previewValues(), slug: "new-co" });
-    const invalid = await post(`/edit/vendors/${vendorId}/preview`, {
-      ...previewValues(),
-      name: "",
-    });
+    const values = await previewValues();
+    const changed = await post(`/edit/vendors/${vendorId}/preview`, values);
+    const added = await post("/edit/vendors/preview", { ...values, slug: "new-co" });
+    const invalid = await post(`/edit/vendors/${vendorId}/preview`, { ...values, name: "" });
 
     expect([changed.status, added.status, invalid.status]).toEqual([200, 200, 400]);
     expect(await changed.text()).toContain("Words typed but not yet saved.");
@@ -122,7 +125,7 @@ describe("previewing", () => {
 
 describe("saving from a preview", () => {
   it("writes the previewed values and one audit entry for the unverified test mode actor", async () => {
-    const preview = await post(`/edit/vendors/${vendorId}/preview`, previewValues());
+    const preview = await post(`/edit/vendors/${vendorId}/preview`, await previewValues());
     const html = await preview.text();
     const token = /name="preview"[^>]*value="([^"]+)"/.exec(html)?.[1] ?? "";
     const before = await snapshot();
@@ -145,10 +148,16 @@ describe("saving from a preview", () => {
 
   it("is refused after someone else changes the record, and writes nothing", async () => {
     const stale = await post(`/edit/vendors/${vendorId}/preview`, {
-      ...previewValues(),
+      ...(await previewValues()),
       name: "Stale Co",
     });
     const token = /name="preview"[^>]*value="([^"]+)"/.exec(await stale.text())?.[1] ?? "";
+    // Someone else saves a change after the editor opened the form.
+    await repos.vendors.update(
+      vendorId,
+      { description: "Changed by someone else." },
+      systemActor("unauthenticated_test_mode"),
+    );
     const before = await snapshot();
 
     const response = await post(`/edit/vendors/${vendorId}/publish`, { preview: token });
