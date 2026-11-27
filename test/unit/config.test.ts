@@ -92,3 +92,33 @@ describe("loadConfig", () => {
     expect(fields).toEqual(expect.arrayContaining(["DATABASE_URL", "PORT", "LOG_LEVEL"]));
   });
 });
+
+describe("the preview signing secret", () => {
+  const testMode = { ...validEnv, EDIT_MODE: "test" };
+  const secret = "a-long-secret-for-signing-previews-0123456789";
+
+  it("is needed whenever test mode editing is on, so the app won't start without it", () => {
+    expect(() => loadConfig(testMode)).toThrow(ConfigError);
+    expect(() => loadConfig({ ...testMode, PREVIEW_SIGNING_SECRET: "too-short" })).toThrow(
+      ConfigError,
+    );
+  });
+
+  it("is read when it is long enough", () => {
+    expect(loadConfig({ ...testMode, PREVIEW_SIGNING_SECRET: secret }).previewSigningSecret).toBe(
+      secret,
+    );
+  });
+
+  it("is not needed when editing is off", () => {
+    expect(loadConfig(validEnv).previewSigningSecret).toBeUndefined();
+  });
+
+  it("is never named in the error", () => {
+    const error = captureError(() =>
+      loadConfig({ ...testMode, PREVIEW_SIGNING_SECRET: "leaky-value-123" }),
+    );
+
+    expect(String((error as ConfigError).message)).not.toContain("leaky-value-123");
+  });
+});
