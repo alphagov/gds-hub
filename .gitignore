@@ -65,8 +65,17 @@ Thumbs.db
 *.tfvars
 !*.tfvars.example
 crash.log
+crash.*.log
+*.tfvars.json
+*.tfplan
+tfplan
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
 # Claude
 /.claude
 .claude/settings.local.json
 infrastructure/terraform/bootstrap/backend.tf.off
+infrastructure-plan.md

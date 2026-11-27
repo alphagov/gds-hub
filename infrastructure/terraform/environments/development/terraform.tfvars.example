@@ -1,0 +1,15 @@
+# Copy to terraform.tfvars (git-ignored) and replace the placeholders.
+# Never commit the real values.
+
+# Address ranges allowed to reach the service. 192.0.2.0/24 is a documentation
+# range, not a real network.
+allowed_cidrs = ["192.0.2.0/24"]
+
+# The bootstrap stack's github_oidc_provider_arn output (123456789012 is AWS's
+# example account ID).
+github_oidc_provider_arn = "arn:aws:iam::123456789012:oidc-provider/token.actions.githubusercontent.com"
+
+# Apply in two steps. Leave false for the first apply. After the first image is
+# pushed and the schema migrated, set both of these and apply again.
+create_service = false
+# app_image      = "<ecr repository url>@sha256:<digest>"

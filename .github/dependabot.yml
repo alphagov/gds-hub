@@ -43,3 +43,18 @@ updates:
       - dependency-name: "*"
         update-types:
           - "version-update:semver-major"
+
+  - package-ecosystem: "terraform"
+    directories:
+      - "/infrastructure/terraform/bootstrap"
+      - "/infrastructure/terraform/environments/*"
+      - "/infrastructure/terraform/modules/*"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    cooldown:
+      default-days: 5
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"

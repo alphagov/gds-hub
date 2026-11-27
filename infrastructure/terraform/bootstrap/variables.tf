@@ -17,4 +17,5 @@ variable "region" {
 variable "state_bucket_name" {
   description = "Name of the state bucket. Bucket names are global, so pick one that is hard to guess. Set it only in the git-ignored terraform.tfvars, never in the repo."
   type        = string
+  sensitive   = true
 }

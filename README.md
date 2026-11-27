@@ -157,15 +157,18 @@ The migration loads the current Hub's built HTML and YAML data files into the da
 
 All configuration comes from environment variables. The app checks them when it starts. If a value is missing or invalid, it lists every problem and refuses to start.
 
-| Variable                        | Default       | Description                                                        |
-| ------------------------------- | ------------- | ------------------------------------------------------------------ |
-| `NODE_ENV`                      | `development` | `development`, `test` or `production`                              |
-| `PORT`                          | `3000`        | Port the app listens on                                            |
-| `LOG_LEVEL`                     | `info`        | `debug`, `info`, `warn` or `error`                                 |
-| `APP_VERSION`                   | `dev`         | Version reported by `/health`                                      |
-| `DATABASE_URL`                  | none          | Required. A `postgres://` or `postgresql://` connection URL        |
-| `EDIT_MODE`                     | `off`         | `off` or `test`. See [Editing](#editing-in-test-mode)              |
-| `ALLOW_UNAUTHENTICATED_EDITING` | none          | `yes`. Also needed for `EDIT_MODE=test` when `NODE_ENV=production` |
+| Variable                                                               | Default       | Description                                                                                                                                           |
+| ---------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NODE_ENV`                                                             | `development` | `development`, `test` or `production`                                                                                                                 |
+| `PORT`                                                                 | `3000`        | Port the app listens on                                                                                                                               |
+| `LOG_LEVEL`                                                            | `info`        | `debug`, `info`, `warn` or `error`                                                                                                                    |
+| `APP_VERSION`                                                          | `dev`         | Version reported by `/health`                                                                                                                         |
+| `DATABASE_URL`                                                         | none          | Required. A `postgres://` or `postgresql://` connection URL                                                                                           |
+| `DATABASE_HOST`, `DATABASE_NAME`, `DATABASE_USER`, `DATABASE_PASSWORD` | none          | Instead of `DATABASE_URL`, set all four (ECS passes them). The app builds the URL and verifies the server certificate                                 |
+| `DATABASE_PORT`                                                        | `5432`        | Port for the database parts                                                                                                                           |
+| `EDIT_MODE`                                                            | `off`         | `off` or `test`. See [Editing](#editing-in-test-mode)                                                                                                 |
+| `ALLOW_UNAUTHENTICATED_EDITING`                                        | none          | `yes`. Also needed for `EDIT_MODE=test` when `NODE_ENV=production`                                                                                    |
+| `TRUST_PROXY_HOPS`                                                     | `0`           | Number of proxies in front of the app, a whole number from 0. Set it to `2` behind CloudFront and the load balancer so `req.ip` is the client address |
 
 Docker Compose also reads these from `.env`:
 

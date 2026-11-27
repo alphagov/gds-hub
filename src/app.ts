@@ -56,6 +56,8 @@ export function createApp({
   const renderer = createRenderer({ noCache: config.nodeEnv === "development" });
 
   app.disable("x-powered-by");
+  // A hop count, never `true`, so a client can't choose its own address with a forged header.
+  app.set("trust proxy", config.trustProxyHops);
   app.use(requestId(logger));
   app.use(requestLogger());
   app.use(cspNonce());
